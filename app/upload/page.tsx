@@ -51,10 +51,30 @@ export default function UploadPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const handleDelete = async (lectureId: string) => {
+  const handleDelete = async (lecture: Lecture) => {
     if (!confirm('Delete this lecture and all its extracted slides?')) return
-    await supabase.from('lecture_pages').delete().eq('lecture_id', lectureId)
-    await supabase.from('lectures').delete().eq('id', lectureId)
+
+    // Get all slide image paths before deleting rows
+    const { data: pages } = await supabase
+      .from('lecture_pages')
+      .select('image_url, page_number')
+      .eq('lecture_id', lecture.id)
+
+    // Delete slide images from storage
+    if (pages && pages.length > 0) {
+      const slidePaths = pages.map((_p, i) => `${lecture.id}/page-${i + 1}.jpg`)
+      await supabase.storage.from('slide-images').remove(slidePaths)
+    }
+
+    // Delete original PDF from storage (path is lectures/{subjectId}/filename)
+    if (lecture.file_url) {
+      const match = lecture.file_url.match(/\/lectures\/(.+)$/)
+      if (match) await supabase.storage.from('lectures').remove([match[1]])
+    }
+
+    // Delete DB rows
+    await supabase.from('lecture_pages').delete().eq('lecture_id', lecture.id)
+    await supabase.from('lectures').delete().eq('id', lecture.id)
     await loadData()
   }
 
@@ -310,7 +330,7 @@ export default function UploadPage() {
                         </a>
                       )}
                       <button
-                        onClick={() => handleDelete(lecture.id)}
+                        onClick={() => handleDelete(lecture)}
                         className="text-slate-600 hover:text-red-400 transition-colors"
                         title="Delete lecture"
                       >
