@@ -26,7 +26,7 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
         const pdfjsLib = await import('pdfjs-dist')
 
         // Set worker — use CDN to avoid bundling issues
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`
 
         setStatus('Loading PDF...')
         const loadingTask = pdfjsLib.getDocument({ url: fileUrl } as Parameters<typeof pdfjsLib.getDocument>[0])
