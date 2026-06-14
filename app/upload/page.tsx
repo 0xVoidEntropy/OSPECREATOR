@@ -33,7 +33,6 @@ export default function UploadPage() {
   const [processSuccess, setProcessSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [serviceKey, setServiceKey] = useState('')
   const [extractingQuestions, setExtractingQuestions] = useState(false)
   const [extractResult, setExtractResult] = useState<string | null>(null)
 
@@ -243,19 +242,6 @@ export default function UploadPage() {
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1.5">
-                    Service Role Key <span className="text-slate-600">(optional — enables AI question extraction)</span>
-                  </label>
-                  <input
-                    type="password"
-                    value={serviceKey}
-                    onChange={e => setServiceKey(e.target.value)}
-                    placeholder="eyJ... (from Supabase → Settings → API)"
-                    className="w-full bg-slate-800/50 border border-slate-600/50 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-violet-500 transition-colors"
-                  />
-                </div>
-
                 {processSuccess && (
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-2">
                     <Check className="w-4 h-4 text-emerald-400" />
@@ -309,15 +295,15 @@ export default function UploadPage() {
                     setProcessingJob(null)
                     setProcessSuccess(true)
                     setTimeout(() => setProcessSuccess(false), 5000)
-                    // Auto-extract questions from slide text if service key provided
-                    if (serviceKey && job) {
+                    // Auto-extract questions from slide text
+                    if (job) {
                       setExtractingQuestions(true)
                       setExtractResult(null)
                       try {
                         const res = await fetch('/api/extract-questions', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ lectureId: job.lectureId, subjectId: job.subjectId, serviceKey }),
+                          body: JSON.stringify({ lectureId: job.lectureId, subjectId: job.subjectId }),
                         })
                         const data = await res.json()
                         if (data.success) setExtractResult(`✓ ${data.count} questions extracted from slides`)

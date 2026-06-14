@@ -132,10 +132,12 @@ function extractQuestionsFromSlides(pages: { page_number: number; text_content: 
 }
 
 export async function POST(request: Request) {
-  const { lectureId, subjectId, serviceKey } = await request.json()
+  const { lectureId, subjectId } = await request.json()
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }, { status: 500 })
 
-  if (!lectureId || !subjectId || !serviceKey) {
-    return NextResponse.json({ error: 'Missing lectureId, subjectId, or serviceKey' }, { status: 400 })
+  if (!lectureId || !subjectId) {
+    return NextResponse.json({ error: 'Missing lectureId or subjectId' }, { status: 400 })
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
