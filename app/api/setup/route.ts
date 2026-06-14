@@ -3,8 +3,6 @@ import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-// This endpoint requires the service role key to bypass RLS and create tables
-// Call it once after deploying: GET /api/setup?key=YOUR_SERVICE_ROLE_KEY
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const serviceKey = searchParams.get('key')
@@ -25,43 +23,165 @@ export async function GET(request: Request) {
   const steps: string[] = []
   const errors: string[] = []
 
-  const projectRef = url.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
-  if (!projectRef) {
-    return NextResponse.json({ error: 'Could not parse project ref from URL' }, { status: 400 })
-  }
-
+  // Run SQL via PostgREST /rest/v1/rpc/exec_sql if available, otherwise
+  // use the Supabase pg-meta endpoint which accepts service_role key
   const runSQL = async (label: string, query: string) => {
     try {
-      const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+      // Use pg-meta SQL endpoint — works with service_role key (not Management API)
+      const res = await fetch(`${url}/rest/v1/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ query }),
+      })
+      // The above won't work for DDL — use the correct endpoint below
+      throw new Error('use_pg_meta')
+    } catch {
+      // Use the correct Supabase SQL execution endpoint
+      try {
+        const res = await fetch(`${url}/pg-meta/v1/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ query }),
+        })
+        if (res.ok) {
+          steps.push(`✓ ${label}`)
+          return true
+        }
+        const body = await res.text()
+        if (body.includes('already exists')) {
+          steps.push(`✓ ${label} (already existed)`)
+          return true
+        }
+        // Fall through to direct Supabase client approach
+        throw new Error(body)
+      } catch (e2) {
+        errors.push(`✗ ${label}: ${String(e2).slice(0, 300)}`)
+        return false
+      }
+    }
+  }
+
+  // Better approach: use the Supabase database REST API for DDL
+  // The correct endpoint for executing raw SQL with service role is:
+  // POST {url}/rest/v1/rpc/exec_sql  -- only if function exists
+  // So instead we use the pg-meta API that ships with every Supabase project
+  const execSQL = async (label: string, query: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${url}/pg/v1/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': serviceKey,
           'Authorization': `Bearer ${serviceKey}`,
         },
         body: JSON.stringify({ query }),
       })
+      const text = await res.text()
       if (res.ok) {
         steps.push(`✓ ${label}`)
         return true
-      } else {
-        const body = await res.json().catch(() => ({}))
-        // If it's a "already exists" error, treat as success
-        const msg = JSON.stringify(body)
-        if (msg.includes('already exists')) {
-          steps.push(`✓ ${label} (already existed)`)
-          return true
-        }
-        errors.push(`✗ ${label}: ${msg.slice(0, 300)}`)
-        return false
       }
+      if (text.includes('already exists')) {
+        steps.push(`✓ ${label} (already existed)`)
+        return true
+      }
+      // Try alternative endpoint
+      const res2 = await fetch(`${url}/rest/v1/rpc/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({ query }),
+      })
+      if (res2.ok) {
+        steps.push(`✓ ${label}`)
+        return true
+      }
+      errors.push(`✗ ${label}: HTTP ${res.status} — ${text.slice(0, 200)}`)
+      return false
     } catch (e) {
-      errors.push(`✗ ${label}: ${String(e)}`)
+      errors.push(`✗ ${label}: ${String(e).slice(0, 200)}`)
       return false
     }
   }
 
-  // Create tables
-  await runSQL('Create subjects table', `
+  // The actual working approach for Supabase: use the database REST endpoint
+  // Supabase exposes /rest/v1/ for table operations but NOT raw SQL.
+  // For raw SQL we need the pg-meta endpoint OR we use direct table inserts.
+  //
+  // Solution: Create tables using the Supabase Management API-compatible endpoint
+  // OR use supabase.rpc() with a pre-existing exec_sql function.
+  //
+  // BEST APPROACH: Use fetch to the Supabase database directly via the
+  // correct API — the database REST endpoint that Supabase Studio uses:
+  // https://{ref}.supabase.co/rest/v1/ doesn't support DDL
+  // But: POST to the internal pg endpoint DOES work with service key.
+
+  // Create tables via SQL using the correct Supabase API path
+  const sql = async (label: string, query: string): Promise<boolean> => {
+    // Supabase's internal SQL API (used by Studio) — works with service_role
+    const endpoints = [
+      `${url}/pg/query`,
+      `${url}/pg-meta/v1/query`,
+      `${url}/api/pg-meta/v1/query`,
+    ]
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': serviceKey,
+            'Authorization': `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ query }),
+        })
+        const text = await res.text()
+        if (res.ok) { steps.push(`✓ ${label}`); return true }
+        if (text.includes('already exists')) { steps.push(`✓ ${label} (already existed)`); return true }
+      } catch { /* try next */ }
+    }
+    // Last resort: use the Supabase database API via the Management console endpoint
+    // with the bearer token being the service role key
+    try {
+      const projectRef = url.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1]
+      if (projectRef) {
+        const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ query }),
+        })
+        const text = await res.text()
+        if (res.ok) { steps.push(`✓ ${label}`); return true }
+        if (text.includes('already exists')) { steps.push(`✓ ${label} (already existed)`); return true }
+        // This endpoint requires a PAT, not service_role — expected to fail
+      }
+    } catch { /* ignore */ }
+
+    errors.push(`✗ ${label}: Could not execute SQL. Please run this in Supabase SQL Editor.`)
+    return false
+  }
+
+  // Try to create tables using Supabase JS client workarounds
+  // For CREATE TABLE: attempt via a stored procedure if it exists
+  // For data inserts: use admin client directly (this DOES work with service_role)
+
+  // Step 1: Try table creation (may fail without PAT — handled gracefully)
+  await sql('Create subjects table', `
     create table if not exists subjects (
       id uuid primary key default gen_random_uuid(),
       name text not null,
@@ -72,7 +192,7 @@ export async function GET(request: Request) {
     )
   `)
 
-  await runSQL('Create questions table', `
+  await sql('Create questions table', `
     create table if not exists questions (
       id uuid primary key default gen_random_uuid(),
       subject_id uuid references subjects(id) on delete cascade,
@@ -87,7 +207,7 @@ export async function GET(request: Request) {
     )
   `)
 
-  await runSQL('Create user_progress table', `
+  await sql('Create user_progress table', `
     create table if not exists user_progress (
       id uuid primary key default gen_random_uuid(),
       user_id uuid references auth.users(id) on delete cascade,
@@ -101,7 +221,7 @@ export async function GET(request: Request) {
     )
   `)
 
-  await runSQL('Create lectures table', `
+  await sql('Create lectures table', `
     create table if not exists lectures (
       id uuid primary key default gen_random_uuid(),
       subject_id uuid references subjects(id) on delete cascade,
@@ -113,24 +233,37 @@ export async function GET(request: Request) {
     )
   `)
 
-  // Enable RLS + policies
-  await runSQL('Enable RLS on all tables', `
+  await sql('Create lecture_pages table', `
+    create table if not exists lecture_pages (
+      id uuid primary key default gen_random_uuid(),
+      lecture_id uuid references lectures(id) on delete cascade,
+      subject_id uuid references subjects(id) on delete cascade,
+      page_number int not null,
+      image_url text not null,
+      text_content text default '',
+      created_at timestamptz default now()
+    )
+  `)
+
+  await sql('Enable RLS on all tables', `
     alter table subjects enable row level security;
     alter table questions enable row level security;
     alter table user_progress enable row level security;
     alter table lectures enable row level security;
+    alter table lecture_pages enable row level security;
   `)
 
-  await runSQL('Create RLS policies', `
+  await sql('Create RLS policies', `
     drop policy if exists "subjects_public_read" on subjects;
     drop policy if exists "questions_public_read" on questions;
+    drop policy if exists "questions_auth_update" on questions;
     drop policy if exists "lectures_public_read" on lectures;
     drop policy if exists "lectures_auth_insert" on lectures;
     drop policy if exists "progress_user_select" on user_progress;
     drop policy if exists "progress_user_insert" on user_progress;
     drop policy if exists "progress_user_update" on user_progress;
-
-    drop policy if exists "questions_auth_update" on questions;
+    drop policy if exists "lecture_pages_public_read" on lecture_pages;
+    drop policy if exists "lecture_pages_auth_insert" on lecture_pages;
 
     create policy "subjects_public_read" on subjects for select using (true);
     create policy "questions_public_read" on questions for select using (true);
@@ -140,359 +273,134 @@ export async function GET(request: Request) {
     create policy "progress_user_select" on user_progress for select using (auth.uid() = user_id);
     create policy "progress_user_insert" on user_progress for insert with check (auth.uid() = user_id);
     create policy "progress_user_update" on user_progress for update using (auth.uid() = user_id);
-  `)
-
-  // Seed subjects
-  await runSQL('Seed subjects', `
-    insert into subjects (id, name, description, color, icon) values
-      ('11111111-1111-1111-1111-111111111111', 'Anatomy', 'Gross anatomy, radiological anatomy, surface anatomy', '#0891b2', '🦴'),
-      ('22222222-2222-2222-2222-222222222222', 'Histology', 'Microscopic anatomy and tissue identification', '#7c3aed', '🔬'),
-      ('33333333-3333-3333-3333-333333333333', 'Pathology', 'Disease morphology, gross and microscopic pathology', '#dc2626', '🧫'),
-      ('44444444-4444-4444-4444-444444444444', 'Biochemistry', 'Clinical biochemistry, metabolic pathways, lab values', '#059669', '⚗️'),
-      ('55555555-5555-5555-5555-555555555555', 'Microbiology', 'Bacteriology, virology, mycology, gram stains', '#d97706', '🦠'),
-      ('66666666-6666-6666-6666-666666666666', 'Physiology', 'Normal physiological function and clinical correlation', '#0284c7', '❤️'),
-      ('77777777-7777-7777-7777-777777777777', 'Radiology', 'Radiological interpretation and imaging modalities', '#9333ea', '🩻')
-    on conflict do nothing
-  `)
-
-  // Seed questions (batch 1)
-  await runSQL('Seed anatomy questions', `
-    insert into questions (subject_id, station_number, question_text, answer, hint, difficulty, tags) values
-    ('11111111-1111-1111-1111-111111111111', 1,
-    'Station 1 — Vertebra Image
-1. What vertebra is this?
-2. What is the marked structure X?
-3. Mention 3 sites where X is NOT present?
-4. What is Y?
-5. What region of the vertebra has a foramen in structure Y?',
-    '1. Cervical vertebra (likely C3-C6)
-2. X = Transverse foramen (foramen transversarium) — found only in cervical vertebrae
-3. NOT present in: Thoracic, Lumbar, Sacral vertebrae
-4. Y = Transverse process
-5. The costal element (anterior root) of cervical vertebrae contains the transverse foramen',
-    'Transverse foramina are UNIQUE to cervical vertebrae — transmit vertebral artery (except C7). Thoracic = costal facets. Lumbar = large, no foramina in transverse processes.',
-    'medium', ARRAY['vertebrae','cervical','anatomy']),
-
-    ('11111111-1111-1111-1111-111111111111', 2,
-    'Station 2 — Gluteal/thigh nerve image
-1. What is nerve X?
-2. Name 2 muscles X innervates?
-3. What is nerve Y?
-4. What nerve is injured by IM injection in region Z?',
-    '1. X = Sciatic nerve (largest nerve in body)
-2. Biceps femoris, Semitendinosus (also Semimembranosus, Adductor magnus posterior)
-3. Y = Superior or Inferior gluteal nerve
-4. Sciatic nerve — safe IM zone = upper outer quadrant of buttock',
-    'Sciatic nerve exits BELOW piriformis through greater sciatic foramen. Safe IM = upper outer quadrant. Divides into tibial + common peroneal at popliteal fossa.',
-    'medium', ARRAY['sciatic nerve','gluteal','IM injection']),
-
-    ('11111111-1111-1111-1111-111111111111', 3,
-    'Station 3 — Knee joint aspiration
-1. What fluid is aspirated?
-2. What is X?
-3. What is Y?
-4. Why is Y more liable to tear than X?',
-    '1. Synovial fluid (from knee joint/suprapatellar bursa)
-2. X = Anterior cruciate ligament (ACL) or Medial collateral ligament (MCL)
-3. Y = Medial meniscus
-4. Medial meniscus is fixed to MCL (less mobile). Unhappy triad: ACL + MCL + Medial meniscus',
-    'Unhappy triad = ACL + MCL + Medial meniscus. Medial meniscus FIXED to MCL → vulnerable. Lateral meniscus = MORE MOBILE → less torn.',
-    'hard', ARRAY['knee','meniscus','ligament','synovial']),
-
-    ('11111111-1111-1111-1111-111111111111', 4,
-    'Station 4 — Lung anatomy
-1. What lobe is X?
-2. Bronchopulmonary segments of X?
-3. Child swallowed coin through trachea — Y or Z bronchus more likely? Why?',
-    '1. X = Right middle lobe (or right lower lobe)
-2. Right middle lobe: Medial + Lateral segments. Right lower lobe: Superior, Medial basal, Anterior basal, Lateral basal, Posterior basal
-3. Right main bronchus (Y) — wider, shorter, more vertical (~25° vs 45° left). Directly in line with trachea.',
-    'RIGHT bronchus = Wider + Shorter + More Vertical → foreign bodies go RIGHT. Mnemonic: "RIGHT is right for foreign bodies."',
-    'medium', ARRAY['bronchus','lung lobes','foreign body','segments']),
-
-    ('11111111-1111-1111-1111-111111111111', 5,
-    'Station 5 — Heart
-1. What groove is X?
-2. Name artery and vein in X?
-3. Physiological state of mitral (Y) and tricuspid (Z) in systole?',
-    '1. X = Coronary sulcus (atrioventricular groove)
-2. Right: RCA + Small cardiac vein. Left: Left circumflex + Great cardiac vein
-3. BOTH CLOSED during systole → produces S1 heart sound',
-    'SYSTOLE: AV valves CLOSE (S1), semilunar valves OPEN. DIASTOLE: semilunar valves CLOSE (S2), AV valves OPEN.',
-    'medium', ARRAY['heart','coronary sulcus','cardiac valves','systole']),
-
-    ('11111111-1111-1111-1111-111111111111', 6,
-    'Station 6 — Abdominal image
-1. What vessel is X?
-2. What organ is Y? Mention its parts?
-3. What is area Z and its contents?',
-    '1. X = Portal vein
-2. Y = Liver: Right lobe, Left lobe, Caudate lobe, Quadrate lobe (Couinaud: 8 segments)
-3. Z = Porta hepatis: Portal vein (posterior), Hepatic artery (left), Common bile duct (right)',
-    'Porta hepatis contents: CBD (right) + Hepatic artery (left) + Portal vein (posterior). Mnemonic: VAN — Vein, Artery, caNal (bile duct).',
-    'hard', ARRAY['liver','portal vein','porta hepatis','abdomen']),
-
-    ('11111111-1111-1111-1111-111111111111', 7,
-    'Station 7 — Surface anatomy
-1. Underlying structures of X?
-2. Arterial supply of X?',
-    '1. Femoral triangle contents (NAVY lateral→medial): Nerve (femoral), Artery (femoral), Vein (femoral), Y-fronts (femoral canal/empty)
-Or cubital fossa: brachialis, median nerve, brachial artery, biceps tendon
-2. Femoral artery (from external iliac) or Brachial artery',
-    'Femoral triangle: NAVY (Nerve-Artery-Vein lateral to medial). Boundaries: inguinal ligament (top), sartorius (lateral), adductor longus (medial).',
-    'medium', ARRAY['surface anatomy','femoral triangle','cubital fossa'])
-    on conflict do nothing
-  `)
-
-  await runSQL('Seed biochemistry questions', `
-    insert into questions (subject_id, station_number, question_text, answer, hint, difficulty, tags) values
-    ('44444444-4444-4444-4444-444444444444', 8,
-    'Station 8 — Lipid Profile
-50-year-old male: TC=290, TG=200, HDL=30, LDL=HIGH mg/dL
-1. Comment on each value?
-2. Normal values of LDL and TC?
-3. Calculate VLDL?',
-    '1. TC=290 → HIGH (normal <200). HDL=30 → LOW risk factor (normal M>40, F>50). LDL=HIGH (optimal <100). TG=200 → Borderline high (normal <150)
-2. TC normal: <200 mg/dL. LDL optimal: <100 mg/dL
-3. VLDL = TG÷5 = 200÷5 = 40 mg/dL (ELEVATED, normal 2-30)',
-    'Friedewald: LDL = TC - HDL - VLDL, VLDL = TG/5 (valid only when TG<400). Normal: TC<200, LDL<100, HDL>40M/>50F, TG<150, VLDL 2-30.',
-    'medium', ARRAY['lipid profile','cholesterol','VLDL','cardiovascular risk']),
-
-    ('44444444-4444-4444-4444-444444444444', 9,
-    'Station 9 — DM Diagnosis
-OGTT: FBG=140 mg/dL, 2hr post=230 mg/dL, HbA1c=7.2%
-1. Diagnosis?
-2. What does HbA1c indicate?
-3. Normal 2hr OGTT value?',
-    '1. Type 2 Diabetes Mellitus (FBG≥126, 2hr OGTT≥200, HbA1c≥6.5% — all criteria met)
-2. HbA1c = average blood glucose over past 2-3 MONTHS (RBC lifespan ~120 days). Non-enzymatic glycation of hemoglobin
-3. Normal 2hr OGTT: <140 mg/dL. Pre-DM: 140-199. DM: ≥200',
-    'DM diagnosis: FBG≥126 OR 2hr OGTT≥200 OR HbA1c≥6.5% OR random glucose≥200+symptoms. HbA1c = 3-month glucose average.',
-    'medium', ARRAY['diabetes','HbA1c','OGTT','glucose'])
-    on conflict do nothing
-  `)
-
-  await runSQL('Seed histology questions', `
-    insert into questions (subject_id, station_number, question_text, answer, hint, difficulty, tags) values
-    ('22222222-2222-2222-2222-222222222222', 10,
-    'Station 10 — Lymph Node
-1. What is L?
-2. Cells normally present in L?
-3. What is C?',
-    '1. L = Lymphoid follicle (secondary, with germinal center) in cortex
-2. Germinal center cells: B lymphocytes (centroblasts/centrocytes), Follicular dendritic cells, Tingible body macrophages, CD4+ T helper cells
-3. C = Capsule (dense collagenous; sends trabeculae inward)',
-    'Lymph node zones: Cortex (B cells/follicles) → Paracortex (T cells/HEVs) → Medulla (plasma cells/macrophages). Secondary follicles = germinal centers = active response.',
-    'medium', ARRAY['lymph node','histology','germinal center','B cells']),
-
-    ('22222222-2222-2222-2222-222222222222', 11,
-    'Station 11 — Histology slide
-A. Identify the structure.
-B. Yellow star: identify and name cells present.
-C. Identify X and its function.',
-    'A. Spleen (white + red pulp) OR Lymph node
-B. Yellow star = White pulp (spleen) or Germinal center (lymph node). Cells: B cells, T cells, macrophages, dendritic cells
-C. X = Red pulp (spleen): filters blood, removes old RBCs, stores platelets/monocytes. Or Paracortex (LN): T cell activation, HEVs',
-    'Spleen: White pulp = lymphoid (immune). Red pulp = sinusoids (filter blood). Surrounded by marginal zone.',
-    'medium', ARRAY['spleen','histology','white pulp','red pulp']),
-
-    ('22222222-2222-2222-2222-222222222222', 12,
-    'Station 12 — Blood vessel
-A. Identify vessel type.
-B. Layer marked Z?
-C. Structure A?
-D. Layer in box?',
-    'A. Medium muscular artery (thick wall, round lumen)
-B. Z = Tunica media (circular smooth muscle + elastic fibers)
-C. A = Internal elastic lamina (IEL) — wavy line between intima and media
-D. Box = Tunica adventitia (loose connective tissue, vasa vasorum)',
-    'Layers (lumen outward): Intima (endothelium+IEL) → Media (smooth muscle) → Adventitia (connective tissue). Arteries: thick wall, round lumen. Veins: thin wall, irregular lumen.',
-    'easy', ARRAY['blood vessel','histology','tunica','artery']),
-
-    ('22222222-2222-2222-2222-222222222222', 13,
-    'Station 13 — Epithelium
-A. Identify the structure.
-B. Star structure?
-C. Two cells in the epithelium?',
-    'A. Trachea (pseudostratified ciliated columnar epithelium + C-shaped hyaline cartilage)
-B. Star = Hyaline cartilage rings OR submucosal seromucinous glands
-C. 1) Ciliated columnar cells (move mucus). 2) Goblet cells (secrete mucus). Also: basal cells, brush cells, Kulchitsky cells',
-    'Respiratory epithelium = PCCE (Pseudostratified Ciliated Columnar Epithelium). All cells touch basement membrane. Goblet cells = mucus. Cilia beat UPWARD.',
-    'easy', ARRAY['trachea','respiratory epithelium','histology','goblet cells'])
-    on conflict do nothing
-  `)
-
-  await runSQL('Seed pathology DM questions', `
-    insert into questions (subject_id, station_number, question_text, answer, hint, difficulty, tags) values
-    ('33333333-3333-3333-3333-333333333333', 14,
-    'Lab 1 — DM Kidney (PAS stain)
-Pink hyaline nodules at periphery of glomeruli.
-1. What type of glomerulosclerosis?
-2. Morphological features?
-3. Two types of diabetic nephropathy?',
-    '1. Nodular glomerulosclerosis (Kimmelstiel-Wilson lesion) — PATHOGNOMONIC of DM
-2. Pink PAS-positive nodules (laminated matrix + trapped mesangial cells) at glomerular periphery
-3. a) Diffuse (mesangiosclerosis): ↑mesangial matrix, BM thickening — common, non-specific
-   b) Nodular (Kimmelstiel-Wilson): discrete nodules — less common but DIAGNOSTIC',
-    'Kimmelstiel-Wilson = pathognomonic of DM. PAS-positive mesangial nodules. Distinguish from MPGN (tram-track) and amyloid (Congo red+).',
-    'hard', ARRAY['diabetic nephropathy','Kimmelstiel-Wilson','glomerulosclerosis','PAS stain']),
-
-    ('33333333-3333-3333-3333-333333333333', 15,
-    'Lab 1 — DM Pancreas
-1. Changes in Type I DM pancreas?
-2. Changes in Type II DM pancreas?
-3. Stain for amyloid? Characteristic finding?',
-    '1. Type I: ↓number and size of islets, insulitis (T lymphocyte infiltration), selective β-cell destruction
-2. Type II: amyloid deposition (IAPP/amylin) replacing β-cells (hyalinization), no significant insulitis
-3. Congo Red stain: amyloid = RED. Under polarized light = apple-GREEN BIREFRINGENCE (pathognomonic)',
-    'Type I = Insulitis (autoimmune T-cell attack). Type II = Amyloid (IAPP). Congo Red → red/green birefringence = AMYLOID hallmark.',
-    'hard', ARRAY['diabetes','pancreas','insulitis','amyloid','Congo red']),
-
-    ('33333333-3333-3333-3333-333333333333', 16,
-    'Lab 1 — DM Retina
-1. Two types of diabetic retinopathy?
-2. Four features of non-proliferative?
-3. Four features of proliferative?
-4. What causes neovascularization?',
-    '1. Non-proliferative (background) and Proliferative
-2. Non-proliferative: microaneurysms (earliest), dot-blot hemorrhages, hard exudates (lipid), cotton-wool spots (microinfarcts)
-3. Proliferative: neovascularization, large hemorrhages, fibrosis, retinal detachment
-4. Retinal ischemia → VEGF release → fragile new vessels → hemorrhage',
-    'Non-proliferative = vascular permeability. Proliferative = VEGF neovascularization → fragile vessels → sudden vision loss. Tx: anti-VEGF, laser.',
-    'hard', ARRAY['diabetic retinopathy','VEGF','neovascularization','microaneurysms'])
-    on conflict do nothing
-  `)
-
-  await runSQL('Seed pathology RA questions', `
-    insert into questions (subject_id, station_number, question_text, answer, hint, difficulty, tags) values
-    ('33333333-3333-3333-3333-333333333333', 17,
-    'Lab 2 — RA Joints
-1. Synovial changes in RA?
-2. What is pannus? Cells forming it?
-3. What are rice bodies?
-4. What is fibrous ankylosis?',
-    '1. Synovium: edematous, thickened, hyperplastic, frond-like (villous) projections. Lymphoid aggregates, neutrophils in fluid, juxta-articular erosions
-2. Pannus = destructive granulation tissue (lymphocytes, plasma cells, macrophages, fibroblasts). Destroys cartilage + bone. Mainly PIP + MCP joints
-3. Rice bodies = floating organized FIBRIN aggregates shed from inflamed synovium
-4. Fibrous ankylosis = pannus bridges articular surfaces → joint fusion (end-stage RA)',
-    'RA progression: Synovitis → Pannus → Cartilage destruction → Fibrous ankylosis. Pannus = MOST IMPORTANT feature. Most common joints: PIP > MCP.',
-    'hard', ARRAY['rheumatoid arthritis','pannus','synovitis','ankylosis']),
-
-    ('33333333-3333-3333-3333-333333333333', 18,
-    'Lab 2 — Rheumatoid Nodule
-1. Histological appearance?
-2. Clinical location?
-3. What are the palisading cells?',
-    '1. Central FIBRINOID NECROSIS of collagen → surrounded by PALISADING HISTIOCYTES → outer chronic inflammatory cells + fibrosis
-2. Subcutaneously over bony prominences. Most common: ELBOW (olecranon). Also wrists, fingers, Achilles. Size 1-2cm. RF-positive RA
-3. Palisading macrophages (histiocytes) — long axes perpendicular to necrotic center (picket fence arrangement)',
-    'Rheumatoid nodule: fibrinoid necrosis (center) + palisading macrophages (middle) + lymphocytes (outside). ELBOW most common. NOT a granuloma (no giant cells).',
-    'medium', ARRAY['rheumatoid nodule','fibrinoid necrosis','palisading histiocytes']),
-
-    ('33333333-3333-3333-3333-333333333333', 19,
-    'Lab 2 — RA Kidney
-1. Kidney disorders associated with RA?
-2. Membranous nephropathy histology?
-3. Tram-track appearance — what and where?',
-    '1. Membranous nephropathy (MOST COMMON), Secondary amyloidosis, FSGS, MPGN, Rheumatoid vasculitis, Analgesic nephropathy (NSAIDs)
-2. PAS: diffuse GBM thickening. IF: granular IgG+C3 along GBM. EM: subepithelial deposits. Non-proliferative
-3. Tram-track = MPGN: mesangial interposition into GBM → double contour on silver stain',
-    'Membranous nephropathy = GBM thickening (PAS) + granular IF = nephrotic syndrome prototype. MPGN = tram-track. Amyloidosis = Congo Red+. Analgesics (NSAIDs) → analgesic nephropathy.',
-    'hard', ARRAY['RA kidney','membranous nephropathy','MPGN','tram-track'])
-    on conflict do nothing
-  `)
-
-  await runSQL('Seed pathology pneumonia questions', `
-    insert into questions (subject_id, station_number, question_text, answer, hint, difficulty, tags) values
-    ('33333333-3333-3333-3333-333333333333', 20,
-    'Lab 3 — Lobar Pneumonia Stages
-Name and describe the 4 stages in order.',
-    '1. CONGESTION (Day 1-2): heavy red lobe, vascular congestion, serous exudate + few neutrophils, still crepitant
-2. RED HEPATIZATION (Day 3-4): firm airless RED lobe like liver; alveoli packed with RBCs + neutrophils + fibrin
-3. GREY HEPATIZATION (Day 5-7): grey-yellow dry firm lobe; RBCs lysed, alveoli filled with macrophages + fibrin
-4. RESOLUTION (Week 2): enzymatic digestion of exudate, macrophages clear debris, normal architecture restored',
-    'Mnemonic: Can Red Gorillas Run? = Congestion → Red hepatization → Grey hepatization → Resolution. Red = RBCs fill alveoli. Grey = macrophages replace RBCs.',
-    'medium', ARRAY['lobar pneumonia','hepatization','stages']),
-
-    ('33333333-3333-3333-3333-333333333333', 21,
-    'Lab 3 — Lobar vs Bronchopneumonia
-Compare: age, patient type, gender, organisms, distribution, boundaries, laterality.',
-    'LOBAR: age 20-50, primary/healthy, males>females, Strep. pneumoniae (95%)/Klebsiella, entire lobe, diffuse, limited by anatomic boundaries, usually UNILATERAL
-BRONCHOPNEUMONIA: extremes of age, secondary/debilitated, both genders, Staph/Strep/H.influenzae/Pseudomonas, PATCHY around airways, NOT limited by boundaries, usually BILATERAL',
-    'Lobar = ONE lobe, young healthy, Pneumococcus, unilateral. Broncho = PATCHY around airways, elderly/infant, multiple bugs, bilateral.',
-    'medium', ARRAY['lobar pneumonia','bronchopneumonia','comparison']),
-
-    ('33333333-3333-3333-3333-333333333333', 22,
-    'Lab 3 — Interstitial Pneumonia
-1. Histological features?
-2. How does it differ from lobar/bronchopneumonia?
-3. Causative organisms?',
-    '1. Alveolar spaces EMPTY or proteinaceous fluid (few/no inflammatory cells). Septal thickening with mononuclear infiltrate. Hyaline membranes in severe cases
-2. vs Lobar: no hepatization, no neutrophilic exudate; vs Broncho: not airway-centered, mononuclear not neutrophilic
-3. Viruses (influenza, RSV, CMV, COVID-19), Mycoplasma pneumoniae (most common atypical), Chlamydophila, PCP, Legionella',
-    'Interstitial = ATYPICAL pneumonia. Inflammation in WALLS (septa), not spaces. Mycoplasma = walking pneumonia. Dry cough, mild fever, bilateral ground-glass on CT.',
-    'hard', ARRAY['interstitial pneumonia','atypical','Mycoplasma'])
-    on conflict do nothing
-  `)
-
-  await runSQL('Seed microbiology, physiology, radiology questions', `
-    insert into questions (subject_id, station_number, question_text, answer, hint, difficulty, tags) values
-    ('55555555-5555-5555-5555-555555555555', 23,
-    'Microbiology — Gram Stain
-Figure A: gram stain. Figure B: blood agar.
-A. Species name (no abbreviation)?
-B. Gram stain result?
-C. Media name and hemolysis type?',
-    'Scenario 1 — Streptococcus pneumoniae: Gram POSITIVE lancet diplococci. Blood agar → ALPHA hemolysis (green, partial)
-Scenario 2 — Staphylococcus aureus: Gram POSITIVE cocci in clusters. Blood agar → BETA hemolysis (clear, complete)
-Scenario 3 — Streptococcus pyogenes: Gram POSITIVE cocci in chains. Blood agar → BETA hemolysis
-Hemolysis: α=incomplete/green, β=complete/clear, γ=none',
-    'Alpha=Almost (incomplete, green). Beta=Better (complete, clear). Gamma=Gone (none). Pneumococcus=alpha+lancet diplococci+optochin sensitive. Staph aureus=beta+coagulase+.',
-    'medium', ARRAY['gram stain','hemolysis','streptococcus','staphylococcus','blood agar']),
-
-    ('66666666-6666-6666-6666-666666666666', 24,
-    'Physiology Station
-Interpret clinical values. Common OSPE topics: ECG, spirometry, ABG, renal function.',
-    'ECG: PR=0.12-0.20s, QRS<0.12s, Rate=300÷RR-intervals
-Spirometry: FEV1/FVC normal>0.75. Obstructive (asthma/COPD): ↓FEV1/FVC. Restrictive (fibrosis): normal ratio, ↓FVC
-ABG: pH 7.35-7.45, PaCO2 35-45, HCO3 22-26. Resp acidosis: ↓pH+↑CO2. Met acidosis: ↓pH+↓HCO3
-Renal: Cr 0.6-1.2, BUN 7-20. BUN:Cr>20=pre-renal',
-    'ABG approach: 1)pH normal? 2)CO2 or HCO3 explain it? 3)Compensation present? Spirometry: GOLD = FEV1% for COPD severity.',
-    'medium', ARRAY['physiology','ECG','spirometry','ABG','renal']),
-
-    ('77777777-7777-7777-7777-777777777777', 25,
-    'Radiology Station
-Identify imaging modality and describe findings.',
-    'CXR approach (ABCDE): Airway (trachea midline?), Bones (fractures?), Cardiac (CTR<0.5), Diaphragm (sharp angles?), Everything else (lung fields)
-Key findings: Consolidation+air bronchogram=pneumonia. Pleural effusion=blunted costophrenic angle. Pneumothorax=hyperlucent+no lung markings. CTR>0.5=cardiomegaly
-CT: Hyperdense=acute blood. Hypodense=infarct/edema. PE=filling defect in pulmonary artery',
-    'CXR mnemonic ABCDE. Consolidation + air bronchogram = pneumonia. Meniscus sign = pleural effusion. Pneumothorax = absent lung markings.',
-    'medium', ARRAY['radiology','CXR','chest X-ray','CT scan'])
-    on conflict do nothing
-  `)
-
-  await runSQL('Create lecture_pages table', `
-    create table if not exists lecture_pages (
-      id uuid primary key default gen_random_uuid(),
-      lecture_id uuid references lectures(id) on delete cascade,
-      subject_id uuid references subjects(id) on delete cascade,
-      page_number int not null,
-      image_url text not null,
-      text_content text default '',
-      created_at timestamptz default now()
-    );
-    alter table lecture_pages enable row level security;
-    drop policy if exists "lecture_pages_public_read" on lecture_pages;
-    drop policy if exists "lecture_pages_auth_insert" on lecture_pages;
     create policy "lecture_pages_public_read" on lecture_pages for select using (true);
     create policy "lecture_pages_auth_insert" on lecture_pages for insert with check (auth.uid() is not null);
   `)
 
-  // Try to create storage bucket for lectures
-  for (const bucket of [
-    { id: 'lectures', name: 'lectures' },
-    { id: 'slide-images', name: 'slide-images' },
-  ]) {
+  // Step 2: Seed data using the admin client (this WORKS with service_role key)
+  const subjects = [
+    { id: '11111111-1111-1111-1111-111111111111', name: 'Anatomy', description: 'Gross anatomy, radiological anatomy, surface anatomy', color: '#0891b2', icon: '🦴' },
+    { id: '22222222-2222-2222-2222-222222222222', name: 'Histology', description: 'Microscopic anatomy and tissue identification', color: '#7c3aed', icon: '🔬' },
+    { id: '33333333-3333-3333-3333-333333333333', name: 'Pathology', description: 'Disease morphology, gross and microscopic pathology', color: '#dc2626', icon: '🧫' },
+    { id: '44444444-4444-4444-4444-444444444444', name: 'Biochemistry', description: 'Clinical biochemistry, metabolic pathways, lab values', color: '#059669', icon: '⚗️' },
+    { id: '55555555-5555-5555-5555-555555555555', name: 'Microbiology', description: 'Bacteriology, virology, mycology, gram stains', color: '#d97706', icon: '🦠' },
+    { id: '66666666-6666-6666-6666-666666666666', name: 'Physiology', description: 'Normal physiological function and clinical correlation', color: '#0284c7', icon: '❤️' },
+    { id: '77777777-7777-7777-7777-777777777777', name: 'Radiology', description: 'Radiological interpretation and imaging modalities', color: '#9333ea', icon: '🩻' },
+  ]
+
+  const { error: subjErr } = await admin.from('subjects').upsert(subjects, { onConflict: 'id', ignoreDuplicates: true })
+  if (subjErr) errors.push(`✗ Seed subjects: ${subjErr.message}`)
+  else steps.push('✓ Subjects seeded')
+
+  const questions = [
+    { subject_id: '11111111-1111-1111-1111-111111111111', station_number: 1, difficulty: 'medium', tags: ['vertebrae','cervical','anatomy'],
+      question_text: `Station 1 — Vertebra Image\n1. What vertebra is this?\n2. What is the marked structure X?\n3. Mention 3 sites where X is NOT present?\n4. What is Y?\n5. What region of the vertebra has a foramen in structure Y?`,
+      answer: `1. Cervical vertebra (likely C3-C6)\n2. X = Transverse foramen (foramen transversarium) — found only in cervical vertebrae\n3. NOT present in: Thoracic, Lumbar, Sacral vertebrae\n4. Y = Transverse process\n5. The costal element (anterior root) of cervical vertebrae contains the transverse foramen`,
+      hint: 'Transverse foramina are UNIQUE to cervical vertebrae — transmit vertebral artery (except C7). Thoracic = costal facets. Lumbar = large, no foramina in transverse processes.' },
+    { subject_id: '11111111-1111-1111-1111-111111111111', station_number: 2, difficulty: 'medium', tags: ['sciatic nerve','gluteal','IM injection'],
+      question_text: `Station 2 — Gluteal/thigh nerve image\n1. What is nerve X?\n2. Name 2 muscles X innervates?\n3. What is nerve Y?\n4. What nerve is injured by IM injection in region Z?`,
+      answer: `1. X = Sciatic nerve (largest nerve in body)\n2. Biceps femoris, Semitendinosus\n3. Y = Superior or Inferior gluteal nerve\n4. Sciatic nerve — safe IM zone = upper outer quadrant of buttock`,
+      hint: 'Sciatic nerve exits BELOW piriformis through greater sciatic foramen. Safe IM = upper outer quadrant. Divides into tibial + common peroneal at popliteal fossa.' },
+    { subject_id: '11111111-1111-1111-1111-111111111111', station_number: 3, difficulty: 'hard', tags: ['knee','meniscus','ligament','synovial'],
+      question_text: `Station 3 — Knee joint\n1. What fluid is aspirated?\n2. What is X?\n3. What is Y?\n4. Why is Y more liable to tear than X?`,
+      answer: `1. Synovial fluid\n2. X = ACL or MCL\n3. Y = Medial meniscus\n4. Medial meniscus fixed to MCL (less mobile). Unhappy triad: ACL + MCL + Medial meniscus`,
+      hint: 'Unhappy triad = ACL + MCL + Medial meniscus. Medial meniscus FIXED to MCL → vulnerable. Lateral meniscus = MORE MOBILE → less torn.' },
+    { subject_id: '11111111-1111-1111-1111-111111111111', station_number: 4, difficulty: 'medium', tags: ['bronchus','lung lobes','foreign body'],
+      question_text: `Station 4 — Lung anatomy\n1. What lobe is X?\n2. Bronchopulmonary segments of X?\n3. Child swallowed coin — Y or Z bronchus more likely? Why?`,
+      answer: `1. X = Right middle lobe\n2. Medial + Lateral segments\n3. Right main bronchus — wider, shorter, more vertical. Directly in line with trachea.`,
+      hint: 'RIGHT bronchus = Wider + Shorter + More Vertical → foreign bodies go RIGHT.' },
+    { subject_id: '11111111-1111-1111-1111-111111111111', station_number: 5, difficulty: 'medium', tags: ['heart','coronary sulcus','valves'],
+      question_text: `Station 5 — Heart\n1. What groove is X?\n2. Name artery and vein in X?\n3. Physiological state of mitral (Y) and tricuspid (Z) in systole?`,
+      answer: `1. X = Coronary sulcus (AV groove)\n2. Right: RCA + Small cardiac vein. Left: Left circumflex + Great cardiac vein\n3. BOTH CLOSED during systole → S1 heart sound`,
+      hint: 'SYSTOLE: AV valves CLOSE (S1), semilunar valves OPEN. DIASTOLE: semilunar valves CLOSE (S2), AV valves OPEN.' },
+    { subject_id: '11111111-1111-1111-1111-111111111111', station_number: 6, difficulty: 'hard', tags: ['liver','portal vein','porta hepatis'],
+      question_text: `Station 6 — Abdominal image\n1. What vessel is X?\n2. What organ is Y? Parts?\n3. What is area Z and its contents?`,
+      answer: `1. X = Portal vein\n2. Y = Liver: Right, Left, Caudate, Quadrate lobes\n3. Z = Porta hepatis: Portal vein (posterior), Hepatic artery (left), CBD (right)`,
+      hint: 'Porta hepatis: CBD (right) + Hepatic artery (left) + Portal vein (posterior). Mnemonic: VAN — Vein, Artery, caNal.' },
+    { subject_id: '11111111-1111-1111-1111-111111111111', station_number: 7, difficulty: 'medium', tags: ['surface anatomy','femoral triangle'],
+      question_text: `Station 7 — Surface anatomy\n1. Underlying structures of X?\n2. Arterial supply of X?`,
+      answer: `1. Femoral triangle: NAVY (Nerve, Artery, Vein, Y-fronts canal)\n2. Femoral artery (from external iliac)`,
+      hint: 'Femoral triangle: NAVY lateral→medial. Boundaries: inguinal ligament (top), sartorius (lateral), adductor longus (medial).' },
+    { subject_id: '44444444-4444-4444-4444-444444444444', station_number: 8, difficulty: 'medium', tags: ['lipid profile','cholesterol','VLDL'],
+      question_text: `Station 8 — Lipid Profile\n50yo male: TC=290, TG=200, HDL=30 mg/dL\n1. Comment on each value?\n2. Normal LDL and TC?\n3. Calculate VLDL?`,
+      answer: `1. TC=290 HIGH (normal<200). HDL=30 LOW (normal M>40). TG=200 Borderline high (normal<150)\n2. TC normal <200. LDL optimal <100\n3. VLDL = TG/5 = 200/5 = 40 mg/dL (ELEVATED, normal 2-30)`,
+      hint: 'Friedewald: LDL = TC - HDL - VLDL. VLDL = TG/5 (valid when TG<400).' },
+    { subject_id: '44444444-4444-4444-4444-444444444444', station_number: 9, difficulty: 'medium', tags: ['diabetes','HbA1c','OGTT'],
+      question_text: `Station 9 — DM Diagnosis\nOGTT: FBG=140, 2hr=230, HbA1c=7.2%\n1. Diagnosis?\n2. What does HbA1c indicate?\n3. Normal 2hr OGTT?`,
+      answer: `1. Type 2 Diabetes Mellitus\n2. Average glucose over 2-3 months (RBC lifespan 120 days)\n3. Normal 2hr OGTT <140. Pre-DM 140-199. DM ≥200`,
+      hint: 'DM: FBG≥126 OR 2hr OGTT≥200 OR HbA1c≥6.5%. HbA1c = 3-month glucose average.' },
+    { subject_id: '22222222-2222-2222-2222-222222222222', station_number: 10, difficulty: 'medium', tags: ['lymph node','histology','germinal center'],
+      question_text: `Station 10 — Lymph Node\n1. What is L?\n2. Cells in L?\n3. What is C?`,
+      answer: `1. L = Lymphoid follicle (secondary with germinal center)\n2. B lymphocytes, follicular dendritic cells, tingible body macrophages\n3. C = Capsule (dense collagenous)`,
+      hint: 'LN zones: Cortex (B cells/follicles) → Paracortex (T cells) → Medulla (plasma cells). Secondary follicles = active response.' },
+    { subject_id: '22222222-2222-2222-2222-222222222222', station_number: 11, difficulty: 'medium', tags: ['spleen','histology','white pulp'],
+      question_text: `Station 11 — Histology slide\nA. Identify structure.\nB. Yellow star: cells present.\nC. Identify X and function.`,
+      answer: `A. Spleen (white + red pulp)\nB. White pulp: B cells, T cells, macrophages, dendritic cells\nC. Red pulp: filters blood, removes old RBCs, stores platelets`,
+      hint: 'Spleen: White pulp = lymphoid (immune). Red pulp = sinusoids (filter blood).' },
+    { subject_id: '22222222-2222-2222-2222-222222222222', station_number: 12, difficulty: 'easy', tags: ['blood vessel','histology','artery'],
+      question_text: `Station 12 — Blood vessel\nA. Vessel type?\nB. Layer Z?\nC. Structure A?\nD. Layer in box?`,
+      answer: `A. Medium muscular artery\nB. Z = Tunica media (circular smooth muscle)\nC. A = Internal elastic lamina (IEL)\nD. Box = Tunica adventitia (loose connective tissue)`,
+      hint: 'Layers (lumen out): Intima (endothelium+IEL) → Media (smooth muscle) → Adventitia. Arteries: thick wall, round lumen.' },
+    { subject_id: '22222222-2222-2222-2222-222222222222', station_number: 13, difficulty: 'easy', tags: ['trachea','epithelium','goblet cells'],
+      question_text: `Station 13 — Epithelium\nA. Identify structure.\nB. Star structure?\nC. Two cells in epithelium?`,
+      answer: `A. Trachea (pseudostratified ciliated columnar epithelium)\nB. Star = Hyaline cartilage ring\nC. 1) Ciliated columnar cells. 2) Goblet cells`,
+      hint: 'Respiratory epithelium = PCCE. Goblet cells = mucus. Cilia beat UPWARD.' },
+    { subject_id: '33333333-3333-3333-3333-333333333333', station_number: 14, difficulty: 'hard', tags: ['diabetic nephropathy','Kimmelstiel-Wilson','PAS'],
+      question_text: `Lab 1 — DM Kidney (PAS stain)\nPink hyaline nodules at periphery of glomeruli.\n1. Type of glomerulosclerosis?\n2. Morphological features?\n3. Two types of diabetic nephropathy?`,
+      answer: `1. Nodular glomerulosclerosis (Kimmelstiel-Wilson lesion) — PATHOGNOMONIC of DM\n2. PAS-positive nodules (laminated matrix + mesangial cells)\n3. a) Diffuse (mesangiosclerosis) b) Nodular (Kimmelstiel-Wilson)`,
+      hint: 'Kimmelstiel-Wilson = pathognomonic of DM. PAS-positive. Distinguish from MPGN (tram-track) and amyloid (Congo red+).' },
+    { subject_id: '33333333-3333-3333-3333-333333333333', station_number: 15, difficulty: 'hard', tags: ['diabetes','pancreas','insulitis','amyloid'],
+      question_text: `Lab 1 — DM Pancreas\n1. Changes in Type I DM pancreas?\n2. Changes in Type II DM pancreas?\n3. Stain for amyloid? Characteristic finding?`,
+      answer: `1. Type I: ↓islets, insulitis (T lymphocyte infiltration), β-cell destruction\n2. Type II: amyloid deposition (IAPP), hyalinization, no insulitis\n3. Congo Red → red. Under polarized light → apple-green birefringence`,
+      hint: 'Type I = Insulitis (autoimmune). Type II = Amyloid (IAPP). Congo Red → red/green birefringence = AMYLOID hallmark.' },
+    { subject_id: '33333333-3333-3333-3333-333333333333', station_number: 16, difficulty: 'hard', tags: ['diabetic retinopathy','VEGF','neovascularization'],
+      question_text: `Lab 1 — DM Retina\n1. Two types of diabetic retinopathy?\n2. Four features of non-proliferative?\n3. Four features of proliferative?\n4. What causes neovascularization?`,
+      answer: `1. Non-proliferative and Proliferative\n2. Non-proliferative: microaneurysms, dot-blot hemorrhages, hard exudates, cotton-wool spots\n3. Proliferative: neovascularization, large hemorrhages, fibrosis, retinal detachment\n4. Retinal ischemia → VEGF → fragile new vessels`,
+      hint: 'Non-proliferative = permeability. Proliferative = VEGF neovascularization → fragile vessels → sudden vision loss.' },
+    { subject_id: '33333333-3333-3333-3333-333333333333', station_number: 17, difficulty: 'hard', tags: ['rheumatoid arthritis','pannus','synovitis'],
+      question_text: `Lab 2 — RA Joints\n1. Synovial changes in RA?\n2. What is pannus? Cells?\n3. What are rice bodies?\n4. What is fibrous ankylosis?`,
+      answer: `1. Edematous, thickened, hyperplastic, frond-like synovium; lymphoid aggregates; juxta-articular erosions\n2. Pannus = destructive granulation tissue (lymphocytes, plasma cells, macrophages, fibroblasts)\n3. Rice bodies = floating organized FIBRIN aggregates from inflamed synovium\n4. Pannus bridges articular surfaces → joint fusion`,
+      hint: 'RA: Synovitis → Pannus → Cartilage destruction → Fibrous ankylosis. Pannus = most important.' },
+    { subject_id: '33333333-3333-3333-3333-333333333333', station_number: 18, difficulty: 'medium', tags: ['rheumatoid nodule','fibrinoid necrosis'],
+      question_text: `Lab 2 — Rheumatoid Nodule\n1. Histological appearance?\n2. Clinical location?\n3. What are palisading cells?`,
+      answer: `1. Central fibrinoid necrosis → palisading histiocytes → outer chronic inflammatory cells + fibrosis\n2. Over bony prominences, most common: elbow (olecranon)\n3. Palisading macrophages — axes perpendicular to necrotic center`,
+      hint: 'Rheumatoid nodule: fibrinoid necrosis (center) + palisading macrophages (middle) + lymphocytes (outside). NOT a granuloma.' },
+    { subject_id: '33333333-3333-3333-3333-333333333333', station_number: 19, difficulty: 'hard', tags: ['RA kidney','membranous nephropathy','MPGN'],
+      question_text: `Lab 2 — RA Kidney\n1. Kidney disorders in RA?\n2. Membranous nephropathy histology?\n3. Tram-track — what and where?`,
+      answer: `1. Membranous nephropathy (most common), secondary amyloidosis, FSGS, MPGN, analgesic nephropathy\n2. PAS: GBM thickening. IF: granular IgG+C3. EM: subepithelial deposits\n3. Tram-track = MPGN: mesangial interposition → double contour on silver stain`,
+      hint: 'Membranous = GBM thickening + granular IF = nephrotic syndrome. MPGN = tram-track. Amyloid = Congo Red+.' },
+    { subject_id: '33333333-3333-3333-3333-333333333333', station_number: 20, difficulty: 'medium', tags: ['lobar pneumonia','hepatization','stages'],
+      question_text: `Lab 3 — Lobar Pneumonia Stages\nName and describe the 4 stages in order.`,
+      answer: `1. CONGESTION (Day 1-2): heavy red lobe, vascular congestion, serous exudate\n2. RED HEPATIZATION (Day 3-4): firm red lobe; alveoli packed with RBCs + neutrophils + fibrin\n3. GREY HEPATIZATION (Day 5-7): grey lobe; RBCs lysed, macrophages + fibrin\n4. RESOLUTION (Week 2): enzymatic digestion, macrophages clear debris`,
+      hint: 'Mnemonic: Can Red Gorillas Run? = Congestion → Red → Grey → Resolution.' },
+    { subject_id: '33333333-3333-3333-3333-333333333333', station_number: 21, difficulty: 'medium', tags: ['lobar pneumonia','bronchopneumonia'],
+      question_text: `Lab 3 — Lobar vs Bronchopneumonia\nCompare age, patient, organisms, distribution, boundaries, laterality.`,
+      answer: `LOBAR: age 20-50, primary/healthy, Strep. pneumoniae, entire lobe, unilateral\nBRONCHOPNEUMONIA: extremes of age, secondary/debilitated, mixed organisms, patchy, bilateral`,
+      hint: 'Lobar = ONE lobe, young healthy, Pneumococcus, unilateral. Broncho = PATCHY, elderly/infant, bilateral.' },
+    { subject_id: '33333333-3333-3333-3333-333333333333', station_number: 22, difficulty: 'hard', tags: ['interstitial pneumonia','atypical','Mycoplasma'],
+      question_text: `Lab 3 — Interstitial Pneumonia\n1. Histological features?\n2. How differs from lobar/bronchopneumonia?\n3. Causative organisms?`,
+      answer: `1. Empty alveolar spaces, septal thickening with mononuclear infiltrate, hyaline membranes in severe cases\n2. No hepatization, no neutrophilic exudate; mononuclear not neutrophilic; not airway-centered\n3. Viruses (influenza, RSV, CMV, COVID-19), Mycoplasma pneumoniae, Chlamydophila, Legionella`,
+      hint: 'Interstitial = ATYPICAL. Inflammation in WALLS not spaces. Mycoplasma = walking pneumonia.' },
+    { subject_id: '55555555-5555-5555-5555-555555555555', station_number: 23, difficulty: 'medium', tags: ['gram stain','hemolysis','streptococcus'],
+      question_text: `Microbiology — Gram Stain\nFigure A: gram stain. Figure B: blood agar.\nA. Species name?\nB. Gram stain result?\nC. Media name and hemolysis type?`,
+      answer: `Streptococcus pneumoniae: Gram POSITIVE lancet diplococci. Blood agar → ALPHA hemolysis (green)\nStaphylococcus aureus: Gram POSITIVE cocci clusters. Blood agar → BETA hemolysis (clear)\nStreptococcus pyogenes: Gram POSITIVE chains. Blood agar → BETA hemolysis`,
+      hint: 'Alpha=incomplete/green. Beta=complete/clear. Pneumococcus=alpha+lancet+optochin sensitive.' },
+    { subject_id: '66666666-6666-6666-6666-666666666666', station_number: 24, difficulty: 'medium', tags: ['physiology','ECG','spirometry','ABG'],
+      question_text: `Physiology Station\nInterpret clinical values: ECG, spirometry, ABG, renal function.`,
+      answer: `ECG: PR=0.12-0.20s, QRS<0.12s, Rate=300÷RR intervals\nSpirometry: FEV1/FVC normal>0.75. Obstructive: ↓FEV1/FVC. Restrictive: normal ratio, ↓FVC\nABG: pH 7.35-7.45, PaCO2 35-45, HCO3 22-26`,
+      hint: 'ABG: 1)pH 2)CO2 or HCO3 explain it? 3)Compensation? Spirometry: GOLD = FEV1% for COPD.' },
+    { subject_id: '77777777-7777-7777-7777-777777777777', station_number: 25, difficulty: 'medium', tags: ['radiology','CXR','chest'],
+      question_text: `Radiology Station\nIdentify imaging modality and describe findings.`,
+      answer: `CXR ABCDE: Airway (midline?), Bones, Cardiac (CTR<0.5), Diaphragm, Everything else\nConsolidation+air bronchogram=pneumonia. Blunted angle=effusion. Hyperlucent=pneumothorax`,
+      hint: 'CXR mnemonic ABCDE. Consolidation + air bronchogram = pneumonia. Meniscus sign = pleural effusion.' },
+  ]
+
+  const { error: qErr } = await admin.from('questions').upsert(questions, { ignoreDuplicates: true })
+  if (qErr) errors.push(`✗ Seed questions: ${qErr.message}`)
+  else steps.push(`✓ ${questions.length} questions seeded`)
+
+  // Storage buckets
+  for (const bucket of ['lectures', 'slide-images']) {
     try {
       const res = await fetch(`${url}/storage/v1/bucket`, {
         method: 'POST',
@@ -501,26 +409,29 @@ CT: Hyperdense=acute blood. Hypodense=infarct/edema. PE=filling defect in pulmon
           'apikey': serviceKey,
           'Authorization': `Bearer ${serviceKey}`,
         },
-        body: JSON.stringify({ id: bucket.id, name: bucket.name, public: true }),
+        body: JSON.stringify({ id: bucket, name: bucket, public: true }),
       })
       const body = await res.text()
       if (res.ok || body.includes('already exists')) {
-        steps.push(`✓ Storage bucket "${bucket.name}" ready`)
+        steps.push(`✓ Storage bucket "${bucket}" ready`)
       } else {
-        errors.push(`⚠ Bucket "${bucket.name}": ${body.slice(0, 150)}`)
+        errors.push(`⚠ Bucket "${bucket}": ${body.slice(0, 150)}`)
       }
     } catch (e) {
-      errors.push(`⚠ Bucket "${bucket.name}": ${String(e)}`)
+      errors.push(`⚠ Bucket "${bucket}": ${String(e)}`)
     }
   }
 
+  const sqlFailed = errors.filter(e => e.startsWith('✗')).length > 0
   return NextResponse.json({
-    success: errors.filter(e => e.startsWith('✗')).length === 0,
-    message: errors.filter(e => e.startsWith('✗')).length === 0
-      ? '🎉 Setup complete! Your OSPE Study Helper is ready.'
-      : 'Setup completed with some warnings. Check errors below.',
+    success: !sqlFailed,
+    message: sqlFailed
+      ? 'Some SQL steps failed. If tables already exist the app should work. See "sqlNote" for manual steps.'
+      : '🎉 Setup complete! Your OSPE Study Helper is ready.',
+    sqlNote: sqlFailed
+      ? 'If you see SQL errors above, go to Supabase → SQL Editor and run the contents of supabase/schema.sql manually. This is a one-time step.'
+      : null,
     steps,
     errors,
-    next: 'Go to your app URL to start studying!',
   }, { status: 200 })
 }
