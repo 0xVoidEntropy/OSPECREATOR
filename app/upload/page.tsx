@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Subject, Lecture } from '@/types'
-import { ArrowLeft, Upload, FileText, Check, Loader2, X, ExternalLink, Cpu } from 'lucide-react'
+import { ArrowLeft, Upload, FileText, Check, Loader2, X, ExternalLink, Cpu, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import nextDynamic from 'next/dynamic'
 
@@ -50,6 +50,13 @@ export default function UploadPage() {
   }, [router, supabase])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const handleDelete = async (lectureId: string) => {
+    if (!confirm('Delete this lecture and all its extracted slides?')) return
+    await supabase.from('lecture_pages').delete().eq('lecture_id', lectureId)
+    await supabase.from('lectures').delete().eq('id', lectureId)
+    await loadData()
+  }
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -302,6 +309,13 @@ export default function UploadPage() {
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
+                      <button
+                        onClick={() => handleDelete(lecture.id)}
+                        className="text-slate-600 hover:text-red-400 transition-colors"
+                        title="Delete lecture"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   )
                 })}
