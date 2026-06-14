@@ -4,8 +4,19 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Subject, Lecture } from '@/types'
-import { ArrowLeft, Upload, FileText, Check, Loader2, X, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Upload, FileText, Check, Loader2, X, ExternalLink, Cpu } from 'lucide-react'
 import Link from 'next/link'
+import nextDynamic from 'next/dynamic'
+
+// Load PDF processor only client-side (uses canvas API)
+const PdfProcessor = nextDynamic(() => import('@/components/PdfProcessor'), { ssr: false })
+
+interface ProcessingJob {
+  lectureId: string
+  subjectId: string
+  fileUrl: string
+  title: string
+}
 
 export default function UploadPage() {
   const router = useRouter()
@@ -18,7 +29,8 @@ export default function UploadPage() {
   const [title, setTitle] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
-  const [success, setSuccess] = useState(false)
+  const [processingJob, setProcessingJob] = useState<ProcessingJob | null>(null)
+  const [processSuccess, setProcessSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -45,43 +57,53 @@ export default function UploadPage() {
 
     setUploading(true)
     setError(null)
+    setProcessingJob(null)
+    setProcessSuccess(false)
 
     try {
-      // Try to upload file to Supabase storage
       const ext = file.name.split('.').pop()
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const path = `lectures/${selectedSubject}/${fileName}`
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadErr } = await supabase.storage
         .from('lectures')
         .upload(path, file, { contentType: file.type })
 
-      let fileUrl: string | null = null
+      if (uploadErr) throw new Error(`File upload failed: ${uploadErr.message}`)
 
-      if (uploadError) {
-        // Storage bucket might not exist — save lecture record without file URL
-        console.warn('Storage upload failed:', uploadError.message)
-      } else if (uploadData) {
-        const { data: { publicUrl } } = supabase.storage.from('lectures').getPublicUrl(path)
-        fileUrl = publicUrl
-      }
+      const { data: { publicUrl } } = supabase.storage.from('lectures').getPublicUrl(path)
 
-      const { error: dbError } = await supabase.from('lectures').insert({
-        subject_id: selectedSubject,
-        title,
-        file_url: fileUrl,
-        file_type: file.type,
-        uploaded_by: userId,
-      })
+      const { data: lectureData, error: dbErr } = await supabase
+        .from('lectures')
+        .insert({
+          subject_id: selectedSubject,
+          title,
+          file_url: publicUrl,
+          file_type: file.type,
+          uploaded_by: userId,
+        })
+        .select()
+        .single()
 
-      if (dbError) throw dbError
+      if (dbErr) throw new Error(dbErr.message)
 
-      setSuccess(true)
       setTitle('')
       setFile(null)
       setSelectedSubject('')
       await loadData()
-      setTimeout(() => setSuccess(false), 3000)
+
+      // If PDF, start slide extraction
+      if (file.type === 'application/pdf' && lectureData) {
+        setProcessingJob({
+          lectureId: lectureData.id,
+          subjectId: lectureData.subject_id,
+          fileUrl: publicUrl,
+          title: lectureData.title,
+        })
+      } else {
+        setProcessSuccess(true)
+        setTimeout(() => setProcessSuccess(false), 4000)
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Upload failed')
     }
@@ -105,7 +127,7 @@ export default function UploadPage() {
           </Link>
           <div>
             <h1 className="text-white font-bold">Upload Lecture</h1>
-            <p className="text-slate-500 text-xs">Add study materials for your colleagues</p>
+            <p className="text-slate-500 text-xs">PDF slides are automatically processed — images matched to questions</p>
           </div>
         </div>
       </div>
@@ -113,9 +135,12 @@ export default function UploadPage() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Upload form */}
-          <div>
+          <div className="space-y-4">
             <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6">
-              <h2 className="font-semibold text-white mb-6">Add New Lecture</h2>
+              <h2 className="font-semibold text-white mb-2">Add Lecture</h2>
+              <p className="text-slate-500 text-xs mb-5">
+                Upload a PDF of your lecture slides. Every slide will be extracted and automatically matched to the relevant OSPE questions.
+              </p>
 
               <form onSubmit={handleUpload} className="space-y-4">
                 <div>
@@ -140,13 +165,13 @@ export default function UploadPage() {
                     value={title}
                     onChange={e => setTitle(e.target.value)}
                     required
-                    placeholder="e.g., Lab 1 - DM Kidney Pathology"
+                    placeholder="e.g., Lab 1 — DM Kidney Pathology"
                     className="w-full bg-slate-800/50 border border-slate-600/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1.5">File (PDF, Image, etc.)</label>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5">PDF File</label>
                   <div
                     className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
                       file ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-slate-600/50 hover:border-slate-500/50'
@@ -156,7 +181,7 @@ export default function UploadPage() {
                     <input
                       id="file-input"
                       type="file"
-                      accept=".pdf,.png,.jpg,.jpeg,.gif,.mp4,.pptx,.docx"
+                      accept=".pdf"
                       onChange={e => setFile(e.target.files?.[0] || null)}
                       className="hidden"
                     />
@@ -166,7 +191,7 @@ export default function UploadPage() {
                         <span className="text-cyan-300 text-sm font-medium">{file.name}</span>
                         <button
                           type="button"
-                          onClick={e => { e.stopPropagation(); setFile(null) }}
+                          onClick={ev => { ev.stopPropagation(); setFile(null) }}
                           className="text-slate-400 hover:text-white"
                         >
                           <X className="w-4 h-4" />
@@ -175,8 +200,8 @@ export default function UploadPage() {
                     ) : (
                       <>
                         <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                        <p className="text-slate-400 text-sm">Click to upload</p>
-                        <p className="text-slate-600 text-xs mt-1">PDF, images, PPTX, DOCX</p>
+                        <p className="text-slate-400 text-sm">Click to upload PDF</p>
+                        <p className="text-slate-600 text-xs mt-1">Every slide will be extracted automatically</p>
                       </>
                     )}
                   </div>
@@ -188,32 +213,64 @@ export default function UploadPage() {
                   </div>
                 )}
 
-                {success && (
+                {processSuccess && (
                   <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-2">
                     <Check className="w-4 h-4 text-emerald-400" />
-                    <p className="text-emerald-400 text-xs">Lecture uploaded successfully!</p>
+                    <p className="text-emerald-400 text-xs">Lecture uploaded and slides extracted successfully!</p>
                   </div>
                 )}
 
                 <button
                   type="submit"
-                  disabled={uploading || !file || !title || !selectedSubject}
+                  disabled={uploading || !file || !title || !selectedSubject || !!processingJob}
                   className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all"
                 >
                   {uploading ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
                   ) : (
-                    <><Upload className="w-4 h-4" /> Upload Lecture</>
+                    <><Upload className="w-4 h-4" /> Upload & Extract Slides</>
                   )}
                 </button>
               </form>
             </div>
 
-            <div className="mt-4 bg-slate-900/40 border border-slate-700/30 rounded-xl p-4">
-              <p className="text-slate-500 text-xs leading-relaxed">
-                <span className="text-slate-400 font-medium">Note:</span> Uploaded lectures are visible to all students in the subject.
-                Large files may require Supabase storage to be configured. Supported formats: PDF, PNG, JPG, PPTX, DOCX.
-              </p>
+            {/* PDF processing status */}
+            {processingJob && (
+              <div className="bg-slate-900/60 border border-cyan-500/30 rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <Cpu className="w-5 h-5 text-cyan-400 animate-pulse" />
+                  <div>
+                    <p className="text-white text-sm font-medium">Extracting slides from "{processingJob.title}"</p>
+                    <p className="text-slate-500 text-xs">Keep this tab open until complete</p>
+                  </div>
+                </div>
+                <PdfProcessor
+                  lectureId={processingJob.lectureId}
+                  subjectId={processingJob.subjectId}
+                  fileUrl={processingJob.fileUrl}
+                  onComplete={count => {
+                    setProcessingJob(null)
+                    setProcessSuccess(true)
+                    setTimeout(() => setProcessSuccess(false), 5000)
+                  }}
+                  onError={err => {
+                    setProcessingJob(null)
+                    setError(`Slide extraction failed: ${err}. The lecture was saved but slides were not extracted.`)
+                  }}
+                />
+              </div>
+            )}
+
+            <div className="bg-slate-900/40 border border-slate-700/30 rounded-xl p-4">
+              <div className="flex items-start gap-2">
+                <Cpu className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-slate-300 text-xs font-medium mb-1">How it works</p>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    Each slide is rendered as an image and stored. When you study, the app automatically matches each question to the most relevant slide from your uploaded lectures — based on the text content of the slide.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -223,17 +280,15 @@ export default function UploadPage() {
             {lectures.length === 0 ? (
               <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-8 text-center">
                 <FileText className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-500 text-sm">No lectures uploaded yet</p>
+                <p className="text-slate-500 text-sm">No lectures yet</p>
+                <p className="text-slate-600 text-xs mt-1">Upload a PDF to get started</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {lectures.map(lecture => {
                   const sub = lecture.subjects as unknown as { name: string; icon: string }
                   return (
-                    <div
-                      key={lecture.id}
-                      className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 flex items-center gap-3"
-                    >
+                    <div key={lecture.id} className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 flex items-center gap-3">
                       <div className="w-9 h-9 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4 text-slate-400" />
                       </div>
@@ -242,12 +297,8 @@ export default function UploadPage() {
                         <p className="text-slate-500 text-xs">{sub?.icon} {sub?.name}</p>
                       </div>
                       {lecture.file_url && (
-                        <a
-                          href={lecture.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-slate-500 hover:text-cyan-400 transition-colors"
-                        >
+                        <a href={lecture.file_url} target="_blank" rel="noopener noreferrer"
+                          className="text-slate-500 hover:text-cyan-400 transition-colors">
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}

@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { Question, Subject, UserProgress, Lecture } from '@/types'
+import { Question, Subject, UserProgress, Lecture, LecturePage } from '@/types'
+import { findBestImage } from '@/lib/matchImage'
 import {
   ArrowLeft, Lightbulb, Eye, EyeOff, CheckCircle, Clock,
   BookOpen, FileText, ExternalLink, Loader2, ImageIcon, X, ZoomIn, Plus
@@ -27,12 +28,12 @@ export default function SubjectPage() {
   const [progress, setProgress] = useState<Map<string, UserProgress>>(new Map())
   const [questionStates, setQuestionStates] = useState<Map<string, QuestionState>>(new Map())
   const [userId, setUserId] = useState<string | null>(null)
+  const [lecturePages, setLecturePages] = useState<LecturePage[]>([])
   const [loading, setLoading] = useState(true)
   const [activeStation, setActiveStation] = useState<number | null>(null)
   const [filter, setFilter] = useState<'all' | 'unanswered' | 'answered'>('all')
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
   const [activeLecture, setActiveLecture] = useState<Lecture | null>(null)
-  const [imageInputs, setImageInputs] = useState<Map<string, string>>(new Map())
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -43,17 +44,20 @@ export default function SubjectPage() {
       { data: subjectData },
       { data: questionsData },
       { data: progressData },
-      { data: lecturesData }
+      { data: lecturesData },
+      { data: pagesData },
     ] = await Promise.all([
       supabase.from('subjects').select('*').eq('id', subjectId).single(),
       supabase.from('questions').select('*').eq('subject_id', subjectId).order('station_number'),
       supabase.from('user_progress').select('*').eq('user_id', session.user.id),
       supabase.from('lectures').select('*').eq('subject_id', subjectId).order('created_at', { ascending: false }),
+      supabase.from('lecture_pages').select('*').eq('subject_id', subjectId),
     ])
 
     if (subjectData) setSubject(subjectData)
     if (questionsData) setQuestions(questionsData)
     if (lecturesData) setLectures(lecturesData)
+    if (pagesData) setLecturePages(pagesData)
 
     if (progressData) {
       const map = new Map<string, UserProgress>()
@@ -72,14 +76,6 @@ export default function SubjectPage() {
       next.set(qId, { ...cur, [key]: !cur[key] })
       return next
     })
-  }
-
-  const saveImage = async (qId: string) => {
-    const url = imageInputs.get(qId)?.trim()
-    if (!url) return
-    await supabase.from('questions').update({ image_url: url }).eq('id', qId)
-    setQuestions(prev => prev.map(q => q.id === qId ? { ...q, image_url: url } : q))
-    toggleState(qId, 'showAddImage')
   }
 
   const markAnswered = async (qId: string, correct: boolean) => {
@@ -301,6 +297,13 @@ export default function SubjectPage() {
             const state = questionStates.get(q.id) || { showAnswer: false, showHint: false, showAddImage: false }
             const prog = progress.get(q.id)
             const isAnswered = prog?.answered
+            // Auto-match image from uploaded lecture slides
+            const matchedImage = findBestImage(
+              q.question_text,
+              q.answer || '',
+              q.hint || '',
+              lecturePages
+            )
 
             return (
               <div
@@ -331,13 +334,13 @@ export default function SubjectPage() {
                     )}
                   </div>
 
-                  {/* IMAGE — shown prominently above question text */}
-                  {q.image_url && (
-                    <div className="mb-4 relative group cursor-pointer" onClick={() => setZoomedImage(q.image_url!)}>
+                  {/* AUTO-MATCHED slide image from uploaded lectures */}
+                  {matchedImage && (
+                    <div className="mb-4 relative group cursor-pointer" onClick={() => setZoomedImage(matchedImage)}>
                       <div className="relative w-full rounded-xl overflow-hidden border border-slate-700/50 bg-slate-800">
                         <img
-                          src={q.image_url}
-                          alt={`Station ${q.station_number} image`}
+                          src={matchedImage}
+                          alt={`Slide for station ${q.station_number}`}
                           className="w-full object-contain max-h-80"
                           loading="lazy"
                         />
@@ -345,6 +348,9 @@ export default function SubjectPage() {
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 rounded-xl px-3 py-1.5 flex items-center gap-2 text-white text-sm">
                             <ZoomIn className="w-4 h-4" /> Click to zoom
                           </div>
+                        </div>
+                        <div className="absolute bottom-2 right-2 bg-black/60 text-slate-400 text-xs px-2 py-1 rounded-lg">
+                          From your lecture slides
                         </div>
                       </div>
                     </div>
@@ -381,17 +387,6 @@ export default function SubjectPage() {
                         {state.showAnswer ? 'Hide Answer' : 'Reveal Answer'}
                       </button>
                     )}
-                    <button
-                      onClick={() => toggleState(q.id, 'showAddImage')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                        state.showAddImage
-                          ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30'
-                          : 'bg-slate-800 text-slate-400 hover:text-violet-300 hover:bg-violet-500/10'
-                      }`}
-                    >
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      {q.image_url ? 'Change Image' : '+ Image'}
-                    </button>
                     <div className="ml-auto flex items-center gap-2">
                       <button
                         onClick={() => markAnswered(q.id, false)}
@@ -416,24 +411,6 @@ export default function SubjectPage() {
                     </div>
                   </div>
 
-                  {/* Add/change image URL */}
-                  {state.showAddImage && (
-                    <div className="mt-3 flex gap-2 answer-reveal">
-                      <input
-                        type="url"
-                        placeholder="Paste image URL (from Google Images, Wikipedia, etc.)"
-                        defaultValue={q.image_url || ''}
-                        onChange={e => setImageInputs(prev => new Map(prev).set(q.id, e.target.value))}
-                        className="flex-1 bg-slate-800 border border-slate-600/50 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500"
-                      />
-                      <button
-                        onClick={() => saveImage(q.id)}
-                        className="bg-violet-500 hover:bg-violet-400 text-white px-3 py-2 rounded-xl text-xs font-bold transition-colors whitespace-nowrap"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  )}
                 </div>
 
                 {/* Hint */}

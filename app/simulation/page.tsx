@@ -8,6 +8,8 @@ import {
   ArrowLeft, Clock, ChevronRight, ChevronLeft, Lightbulb, Eye, EyeOff,
   CheckCircle, Play, RotateCcw, Trophy, Loader2, X
 } from 'lucide-react'
+import { LecturePage } from '@/types'
+import { findBestImage } from '@/lib/matchImage'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
@@ -21,6 +23,7 @@ function SimulationContent() {
   const supabase = createClient()
   const [questions, setQuestions] = useState<Question[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
+  const [lecturePages, setLecturePages] = useState<LecturePage[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [timeLeft, setTimeLeft] = useState(STATION_DURATION)
   const [running, setRunning] = useState(false)
@@ -39,9 +42,10 @@ function SimulationContent() {
     if (!session) { router.replace('/auth'); return }
     setUserId(session.user.id)
 
-    const [{ data: qData }, { data: sData }] = await Promise.all([
+    const [{ data: qData }, { data: sData }, { data: pData }] = await Promise.all([
       supabase.from('questions').select('*, subjects(*)').order('created_at'),
       supabase.from('subjects').select('*').order('name'),
+      supabase.from('lecture_pages').select('*'),
     ])
 
     if (qData) {
@@ -49,6 +53,7 @@ function SimulationContent() {
       setQuestions(shuffled)
     }
     if (sData) setSubjects(sData)
+    if (pData) setLecturePages(pData)
     setLoading(false)
   }, [router, supabase])
 
@@ -367,17 +372,23 @@ function SimulationContent() {
             </div>
           )}
 
-          {/* IMAGE — shown prominently */}
-          {currentQ.image_url && (
-            <div className="mb-4 rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-800">
-              <img
-                src={currentQ.image_url}
-                alt={`Station ${currentQ.station_number}`}
-                className="w-full object-contain max-h-72"
-                loading="lazy"
-              />
-            </div>
-          )}
+          {/* AUTO-MATCHED slide image from uploaded lectures */}
+          {(() => {
+            const img = findBestImage(currentQ.question_text, currentQ.answer || '', currentQ.hint || '', lecturePages)
+            return img ? (
+              <div className="mb-4 rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-800 relative">
+                <img
+                  src={img}
+                  alt={`Slide for station ${currentQ.station_number}`}
+                  className="w-full object-contain max-h-72"
+                  loading="lazy"
+                />
+                <div className="absolute bottom-2 right-2 bg-black/60 text-slate-400 text-xs px-2 py-1 rounded-lg">
+                  From your lecture slides
+                </div>
+              </div>
+            ) : null
+          })()}
 
           {/* Question text */}
           <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-4">

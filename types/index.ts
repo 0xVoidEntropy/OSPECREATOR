@@ -51,3 +51,13 @@ export interface SubjectWithStats extends Subject {
   total_questions: number
   answered_questions: number
 }
+
+export interface LecturePage {
+  id: string
+  lecture_id: string
+  subject_id: string
+  page_number: number
+  image_url: string
+  text_content: string
+  created_at: string
+}
