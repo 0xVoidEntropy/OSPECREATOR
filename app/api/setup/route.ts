@@ -130,8 +130,11 @@ export async function GET(request: Request) {
     drop policy if exists "progress_user_insert" on user_progress;
     drop policy if exists "progress_user_update" on user_progress;
 
+    drop policy if exists "questions_auth_update" on questions;
+
     create policy "subjects_public_read" on subjects for select using (true);
     create policy "questions_public_read" on questions for select using (true);
+    create policy "questions_auth_update" on questions for update using (auth.uid() is not null);
     create policy "lectures_public_read" on lectures for select using (true);
     create policy "lectures_auth_insert" on lectures for insert with check (auth.uid() = uploaded_by);
     create policy "progress_user_select" on user_progress for select using (auth.uid() = user_id);
@@ -466,6 +469,82 @@ CT: Hyperdense=acute blood. Hypodense=infarct/edema. PE=filling defect in pulmon
     'CXR mnemonic ABCDE. Consolidation + air bronchogram = pneumonia. Meniscus sign = pleural effusion. Pneumothorax = absent lung markings.',
     'medium', ARRAY['radiology','CXR','chest X-ray','CT scan'])
     on conflict do nothing
+  `)
+
+  // Seed images — real Wikimedia Commons medical images matched to each question
+  await runSQL('Seed question images', `
+    -- ANATOMY
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Cervical_vertebra_english.png/800px-Cervical_vertebra_english.png'
+    where subject_id='11111111-1111-1111-1111-111111111111' and station_number=1;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Sciatic_nerve.jpg/800px-Sciatic_nerve.jpg'
+    where subject_id='11111111-1111-1111-1111-111111111111' and station_number=2;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Knee_diagram.svg/800px-Knee_diagram.svg.png'
+    where subject_id='11111111-1111-1111-1111-111111111111' and station_number=3;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Respiratory_system_complete_en.svg/800px-Respiratory_system_complete_en.svg.png'
+    where subject_id='11111111-1111-1111-1111-111111111111' and station_number=4;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Diagram_of_the_human_heart_%28cropped%29.svg/800px-Diagram_of_the_human_heart_%28cropped%29.svg.png'
+    where subject_id='11111111-1111-1111-1111-111111111111' and station_number=5;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Portal_hypertension.svg/800px-Portal_hypertension.svg.png'
+    where subject_id='11111111-1111-1111-1111-111111111111' and station_number=6;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Femoral_triangle.svg/800px-Femoral_triangle.svg.png'
+    where subject_id='11111111-1111-1111-1111-111111111111' and station_number=7;
+
+    -- HISTOLOGY
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Lymph_node_histology.jpg/800px-Lymph_node_histology.jpg'
+    where subject_id='22222222-2222-2222-2222-222222222222' and station_number=10;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Spleen_histology.jpg/800px-Spleen_histology.jpg'
+    where subject_id='22222222-2222-2222-2222-222222222222' and station_number=11;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Artery_wall_histology.jpg/800px-Artery_wall_histology.jpg'
+    where subject_id='22222222-2222-2222-2222-222222222222' and station_number=12;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Trachea_cross_section.jpg/800px-Trachea_cross_section.jpg'
+    where subject_id='22222222-2222-2222-2222-222222222222' and station_number=13;
+
+    -- PATHOLOGY - DM
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Diabetic_glomerulosclerosis_%284%29_Periodic_acid%E2%80%93Schiff.jpg/800px-Diabetic_glomerulosclerosis_%284%29_Periodic_acid%E2%80%93Schiff.jpg'
+    where subject_id='33333333-3333-3333-3333-333333333333' and station_number=14;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Amyloid_deposits_in_islets_of_Langerhans_%28Congo_red%29.jpg/800px-Amyloid_deposits_in_islets_of_Langerhans_%28Congo_red%29.jpg'
+    where subject_id='33333333-3333-3333-3333-333333333333' and station_number=15;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Proliferative_diabetic_retinopathy.jpg/800px-Proliferative_diabetic_retinopathy.jpg'
+    where subject_id='33333333-3333-3333-3333-333333333333' and station_number=16;
+
+    -- PATHOLOGY - RA
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Rheumatoid_arthritis_joint_pathology.jpg/800px-Rheumatoid_arthritis_joint_pathology.jpg'
+    where subject_id='33333333-3333-3333-3333-333333333333' and station_number=17;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Rheumatoid_nodule_-_very_high_mag.jpg/800px-Rheumatoid_nodule_-_very_high_mag.jpg'
+    where subject_id='33333333-3333-3333-3333-333333333333' and station_number=18;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Membranous_nephropathy_-_high_mag.jpg/800px-Membranous_nephropathy_-_high_mag.jpg'
+    where subject_id='33333333-3333-3333-3333-333333333333' and station_number=19;
+
+    -- PATHOLOGY - Pneumonia
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Lobar_pneumonia_red_hepatization.jpg/800px-Lobar_pneumonia_red_hepatization.jpg'
+    where subject_id='33333333-3333-3333-3333-333333333333' and station_number=20;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Bronchopneumonia_-_low_mag.jpg/800px-Bronchopneumonia_-_low_mag.jpg'
+    where subject_id='33333333-3333-3333-3333-333333333333' and station_number=21;
+
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Interstitial_pneumonia.jpg/800px-Interstitial_pneumonia.jpg'
+    where subject_id='33333333-3333-3333-3333-333333333333' and station_number=22;
+
+    -- MICROBIOLOGY
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Streptococcus_pneumoniae_01.jpg/800px-Streptococcus_pneumoniae_01.jpg'
+    where subject_id='55555555-5555-5555-5555-555555555555' and station_number=23;
+
+    -- RADIOLOGY
+    update questions set image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Pneumonia_x-ray.jpg/800px-Pneumonia_x-ray.jpg'
+    where subject_id='77777777-7777-7777-7777-777777777777' and station_number=25;
   `)
 
   // Try to create storage bucket for lectures

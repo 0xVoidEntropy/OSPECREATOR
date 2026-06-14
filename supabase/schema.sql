@@ -57,6 +57,7 @@ alter table lectures enable row level security;
 
 drop policy if exists "subjects_public_read" on subjects;
 drop policy if exists "questions_public_read" on questions;
+drop policy if exists "questions_auth_update" on questions;
 drop policy if exists "lectures_public_read" on lectures;
 drop policy if exists "lectures_auth_insert" on lectures;
 drop policy if exists "progress_user_select" on user_progress;
@@ -65,6 +66,7 @@ drop policy if exists "progress_user_update" on user_progress;
 
 create policy "subjects_public_read" on subjects for select using (true);
 create policy "questions_public_read" on questions for select using (true);
+create policy "questions_auth_update" on questions for update using (auth.uid() is not null);
 create policy "lectures_public_read" on lectures for select using (true);
 create policy "lectures_auth_insert" on lectures for insert with check (auth.uid() = uploaded_by);
 

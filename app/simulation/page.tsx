@@ -367,6 +367,18 @@ function SimulationContent() {
             </div>
           )}
 
+          {/* IMAGE — shown prominently */}
+          {currentQ.image_url && (
+            <div className="mb-4 rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-800">
+              <img
+                src={currentQ.image_url}
+                alt={`Station ${currentQ.station_number}`}
+                className="w-full object-contain max-h-72"
+                loading="lazy"
+              />
+            </div>
+          )}
+
           {/* Question text */}
           <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-4">
             <p className="text-slate-100 text-base leading-relaxed whitespace-pre-line">{currentQ.question_text}</p>
