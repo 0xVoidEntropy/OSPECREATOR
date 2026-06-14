@@ -297,8 +297,8 @@ export default function SubjectPage() {
             const state = questionStates.get(q.id) || { showAnswer: false, showHint: false, showAddImage: false }
             const prog = progress.get(q.id)
             const isAnswered = prog?.answered
-            // Auto-match image from uploaded lecture slides
-            const matchedImage = findBestImage(
+            // Use stored image first (from extraction), fall back to fuzzy match
+            const matchedImage = q.image_url || findBestImage(
               q.question_text,
               q.answer || '',
               q.hint || '',

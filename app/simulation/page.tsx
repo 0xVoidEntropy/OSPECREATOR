@@ -374,7 +374,7 @@ function SimulationContent() {
 
           {/* AUTO-MATCHED slide image from uploaded lectures */}
           {(() => {
-            const img = findBestImage(currentQ.question_text, currentQ.answer || '', currentQ.hint || '', lecturePages)
+            const img = currentQ.image_url || findBestImage(currentQ.question_text, currentQ.answer || '', currentQ.hint || '', lecturePages)
             return img ? (
               <div className="mb-4 rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-800 relative">
                 <img

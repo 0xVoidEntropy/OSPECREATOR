@@ -3,182 +3,104 @@ import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
-interface ExtractedQ {
-  station_number: number
-  question_text: string
-  answer: string
-  hint: string
-  difficulty: string
-  tags: string[]
+interface PageData {
+  page_number: number
+  text_content: string
+  image_url: string
 }
 
-function parseExamQuestions(pages: { page_number: number; text_content: string }[]): ExtractedQ[] {
-  const results: ExtractedQ[] = []
-  const fullText = pages.map(p => p.text_content).join('\n\n')
-
-  // Normalize whitespace
-  const lines = fullText
-    .split(/\s{3,}|\n/)
-    .map(l => l.trim())
-    .filter(l => l.length > 2)
-
-  // Try to detect station-based exam format
-  const stationPattern = /^station\s*(\d+)/i
-  const questionPattern = /^(\d+)[.)]\s+.{10,}/
-  const questionMarkPattern = /.+\?$/
-
-  let currentStation = 0
-  let stationTitle = ''
-  let currentQuestions: string[] = []
-  let currentContext: string[] = []
-
-  const flush = () => {
-    if (currentQuestions.length === 0 || currentContext.length === 0) return
-
-    const questionText = stationTitle
-      ? `${stationTitle}\n${currentQuestions.join('\n')}`
-      : currentQuestions.join('\n')
-
-    const answer = currentContext.join('\n')
-    const hint = currentContext.slice(0, 2).join(' | ').slice(0, 250)
-
-    // Estimate difficulty from question count and keywords
-    const hard = /pathognomonic|mechanism|compare|distinguish|classify|enumerate/i.test(questionText)
-    const easy = currentQuestions.length === 1 && questionText.length < 100
-
-    results.push({
-      station_number: currentStation || (100 + results.length),
-      question_text: questionText.slice(0, 1000),
-      answer: answer.slice(0, 2000),
-      hint,
-      difficulty: hard ? 'hard' : easy ? 'easy' : 'medium',
-      tags: extractTags(questionText + ' ' + answer),
-    })
-  }
-
-  for (const line of lines) {
-    const stationMatch = line.match(stationPattern)
-    if (stationMatch) {
-      flush()
-      currentStation = parseInt(stationMatch[1])
-      stationTitle = line
-      currentQuestions = []
-      currentContext = []
-      continue
-    }
-
-    const isQuestion = questionPattern.test(line) || questionMarkPattern.test(line)
-
-    if (isQuestion) {
-      currentQuestions.push(line)
-    } else if (currentQuestions.length > 0) {
-      // Lines after questions = answer/context
-      currentContext.push(line)
-    } else {
-      // Lines before questions = context/stem
-      currentContext.push(line)
-    }
-  }
-  flush()
-
-  // If station-based parsing found nothing, fall back to topic-based grouping
-  if (results.length === 0) {
-    return topicBasedExtraction(pages)
-  }
-
-  return results.slice(0, 30)
+// Skip slides that are just title/intro pages with no real content
+function isContentSlide(lines: string[]): boolean {
+  if (lines.length < 2) return false
+  const joined = lines.join(' ').toLowerCase()
+  // Skip pure title slides, objective slides, reference slides
+  if (/^(objectives?|contents?|references?|outline|introduction|acknowledgement|thank you|the end)$/i.test(lines[0])) return false
+  // Must have at least some medical content
+  return joined.length > 40
 }
 
-function topicBasedExtraction(pages: { page_number: number; text_content: string }[]): ExtractedQ[] {
-  const results: ExtractedQ[] = []
-  const usedTopics = new Set<string>()
-
-  for (const page of pages) {
-    const text = page.text_content.trim()
-    if (text.length < 30) continue
-
-    const lines = text.split(/\s{2,}|\n/).map(l => l.trim()).filter(l => l.length > 3)
-    if (lines.length < 3) continue
-
-    const title = lines[0]
-    const key = title.toLowerCase().slice(0, 35)
-    if (usedTopics.has(key)) continue
-    usedTopics.add(key)
-
-    // Only create a question if we have meaningful content
-    const contentLines = lines.slice(1).filter(l => l.length > 8)
-    if (contentLines.length < 2) continue
-
-    // Look for any actual question marks in content
-    const realQuestions = contentLines.filter(l => l.endsWith('?'))
-    const facts = contentLines.filter(l => !l.endsWith('?'))
-
-    let questionText: string
-    if (realQuestions.length > 0) {
-      questionText = `${title}\n${realQuestions.join('\n')}`
-    } else {
-      // Build a contextual question from the title topic
-      questionText = buildQuestionFromTitle(title, contentLines)
-    }
-
-    if (!questionText) continue
-
-    results.push({
-      station_number: 100 + results.length,
-      question_text: questionText.slice(0, 800),
-      answer: facts.slice(0, 10).join('\n').slice(0, 1500),
-      hint: facts.slice(0, 2).join(' | ').slice(0, 250),
-      difficulty: inferDifficulty(title, contentLines),
-      tags: extractTags(title + ' ' + contentLines.slice(0, 4).join(' ')),
-    })
-
-    if (results.length >= 20) break
-  }
-
-  return results
-}
-
-function buildQuestionFromTitle(title: string, content: string[]): string {
+function buildQuestion(title: string, contentLines: string[]): string {
   const t = title.toLowerCase()
 
-  if (/kidney|glomerul|nephropat|renal/i.test(t))
-    return `${title}\n1. Identify the renal pathology shown in this slide.\n2. Describe the key microscopic features.\n3. What is the diagnosis and its clinical significance?`
-  if (/pancrea|islet|insulin/i.test(t))
-    return `${title}\n1. Identify the tissue shown.\n2. Describe the pathological changes present.\n3. Distinguish between Type I and Type II changes.`
-  if (/retina|retinopathy/i.test(t))
-    return `${title}\n1. Name the two types of diabetic retinopathy.\n2. List four features of non-proliferative type.\n3. What mediates neovascularization?`
-  if (/pannus|synovit|joint|arthr/i.test(t))
-    return `${title}\n1. Identify the pathological process.\n2. Name the cells involved in pannus formation.\n3. What is the end result of untreated disease?`
-  if (/nodule|rheumatoid nodule/i.test(t))
-    return `${title}\n1. Describe the histological structure of this lesion.\n2. Where is it most commonly found clinically?\n3. What are the palisading cells?`
-  if (/pneumonia|lung|alveol/i.test(t))
-    return `${title}\n1. Identify the type of pneumonia shown.\n2. Describe the histological features.\n3. Name the causative organisms.`
-  if (/stain|h&e|pas|congo/i.test(t))
-    return `${title}\n1. Name the stain used and what it demonstrates.\n2. Identify the structure/pathology shown.\n3. Describe the characteristic morphological features.`
-  if (/stage|hepatization|congestion/i.test(t))
-    return `${title}\n1. Name and sequence the stages of lobar pneumonia.\n2. Describe what is seen in this stage.\n3. What cells predominate at this stage?`
+  // If there are actual question sentences in content, use them
+  const realQs = contentLines.filter(l => l.trim().endsWith('?') && l.length > 10)
+  if (realQs.length >= 2) {
+    return `${title}\n${realQs.join('\n')}`
+  }
 
-  // Generic fallback
-  return `${title}\n1. Identify the specimen or structure shown in this slide.\n2. Describe the morphological features seen.\n3. What is the diagnosis and associated condition?`
+  // Build contextual OSPE questions based on topic
+  if (/kimmelstiel|nodular|glomeruloscleros/i.test(t))
+    return `${title}\n1. What type of glomerulosclerosis is shown?\n2. Describe the morphological features (stain, location, composition).\n3. Is this finding pathognomonic? For what condition?`
+  if (/kidney|nephropat|glomerul|renal/i.test(t))
+    return `${title}\n1. Identify the renal pathology shown.\n2. Describe the key histological features.\n3. What is the underlying condition causing this?`
+  if (/diffuse.*scleros|mesangial/i.test(t))
+    return `${title}\n1. Identify this type of diabetic nephropathy.\n2. How does it differ from the nodular type?\n3. Is it specific to diabetes?`
+  if (/pancrea|islet/i.test(t))
+    return `${title}\n1. Identify the tissue and pathological changes shown.\n2. Is this Type I or Type II DM? How can you tell?\n3. What stain is used to confirm amyloid? What is the characteristic finding?`
+  if (/retina|retinopathy/i.test(t))
+    return `${title}\n1. Identify the type of diabetic retinopathy shown.\n2. Name four features visible in this type.\n3. What factor drives neovascularization?`
+  if (/pannus|synovit/i.test(t))
+    return `${title}\n1. Identify the pathological process shown.\n2. Name three cell types forming the pannus.\n3. What structures does pannus destroy?`
+  if (/rheumatoid.*nodule|nodule.*rheumatoid/i.test(t))
+    return `${title}\n1. Describe the three-layer histological structure of this lesion.\n2. Where is it most commonly found clinically?\n3. Are these cells granuloma? Why or why not?`
+  if (/rice.*bod|fibrin/i.test(t))
+    return `${title}\n1. What are rice bodies and where do they form?\n2. What is their composition?\n3. In which joint disease are they most commonly found?`
+  if (/ankylosis|fibrous/i.test(t))
+    return `${title}\n1. Define fibrous ankylosis.\n2. What precedes it in the disease progression?\n3. What is the end-stage form called?`
+  if (/membranous.*nephropathy|nephropathy.*membranous/i.test(t))
+    return `${title}\n1. Describe the histological appearance on PAS stain.\n2. What does immunofluorescence show?\n3. What does electron microscopy reveal? What syndrome does it cause?`
+  if (/tram.?track|mpgn/i.test(t))
+    return `${title}\n1. What is the tram-track appearance and which stain shows it?\n2. What causes this appearance?\n3. What type of nephritis is this?`
+  if (/amyloid/i.test(t))
+    return `${title}\n1. What stain is used to identify amyloid?\n2. Describe the appearance under polarized light.\n3. In which DM type is amyloid (IAPP) deposited?`
+  if (/congestion.*pneumonia|red.*hepatiz|grey.*hepatiz|resolut.*pneumonia/i.test(t))
+    return `${title}\n1. Which stage of lobar pneumonia is shown?\n2. Describe what fills the alveoli at this stage.\n3. What is the next stage and how does it differ?`
+  if (/lobar.*pneumonia|pneumonia.*lobar/i.test(t))
+    return `${title}\n1. Name all four stages of lobar pneumonia in order.\n2. Describe the gross appearance at each stage.\n3. What organism causes 95% of cases?`
+  if (/bronchopneumonia/i.test(t))
+    return `${title}\n1. Compare lobar vs bronchopneumonia — age group, distribution, organisms.\n2. Why is bronchopneumonia typically bilateral and patchy?\n3. Which patient population is most at risk?`
+  if (/interstitial|atypical.*pneumonia/i.test(t))
+    return `${title}\n1. Describe the histological appearance of interstitial pneumonia.\n2. How does it differ from lobar and bronchopneumonia?\n3. Name three causative organisms.`
+  if (/stain|h&e|pas|congo|silver/i.test(t))
+    return `${title}\n1. Name this stain and what it demonstrates.\n2. Identify the pathology shown.\n3. Describe the characteristic morphological features.`
+
+  // Generic OSPE-style question
+  return `${title}\n1. Identify the specimen/structure shown.\n2. Describe the key morphological features visible.\n3. What is the diagnosis and what condition causes it?`
+}
+
+function buildAnswer(contentLines: string[]): string {
+  // Filter out lines that look like slide navigation or metadata
+  const filtered = contentLines.filter(l =>
+    l.length > 5 &&
+    !/^(slide|page|\d+\/\d+|next|prev|click)/i.test(l)
+  )
+  return filtered.slice(0, 14).join('\n')
+}
+
+function buildHint(title: string, contentLines: string[]): string {
+  // Pick the most fact-dense lines for the hint
+  const facts = contentLines
+    .filter(l => l.length > 15 && !l.endsWith('?'))
+    .slice(0, 3)
+  return facts.join(' | ').slice(0, 280)
 }
 
 function inferDifficulty(title: string, content: string[]): 'easy' | 'medium' | 'hard' {
   const combined = (title + ' ' + content.join(' ')).toLowerCase()
-  if (/pathognomonic|mechanism|pathogenesis|distinguish|classify|compare/i.test(combined)) return 'hard'
-  if (/identify|name|list|what is/i.test(combined) && content.length < 4) return 'easy'
+  if (/pathognomonic|mechanism|pathogenesis|distinguish|classify|compare|enumerate/i.test(combined)) return 'hard'
+  if (content.length <= 3 && title.length < 40) return 'easy'
   return 'medium'
 }
 
 function extractTags(text: string): string[] {
-  const medical = [
-    'kidney', 'nephropathy', 'glomerulus', 'diabetes', 'pancreas', 'retina',
-    'pneumonia', 'lung', 'alveoli', 'rheumatoid', 'arthritis', 'synovium',
-    'pannus', 'nodule', 'fibrosis', 'necrosis', 'stain', 'PAS', 'Congo',
-    'amyloid', 'hepatization', 'consolidation', 'interstitial', 'Kimmelstiel',
-    'membranous', 'MPGN', 'vasculitis', 'histology', 'pathology',
+  const terms = [
+    'kidney','nephropathy','glomerulus','diabetes','pancreas','retina','rheumatoid',
+    'arthritis','synovium','pannus','nodule','fibrosis','necrosis','amyloid',
+    'pneumonia','lung','alveoli','consolidation','interstitial','Kimmelstiel',
+    'membranous','MPGN','PAS','Congo','histology','pathology','stain',
   ]
   const t = text.toLowerCase()
-  return medical.filter(tag => t.includes(tag.toLowerCase())).slice(0, 6)
+  return terms.filter(tag => t.includes(tag.toLowerCase())).slice(0, 5)
 }
 
 export async function POST(request: Request) {
@@ -192,7 +114,7 @@ export async function POST(request: Request) {
 
   const { data: pages, error: pagesErr } = await admin
     .from('lecture_pages')
-    .select('page_number, text_content')
+    .select('page_number, text_content, image_url')
     .eq('lecture_id', lectureId)
     .order('page_number')
 
@@ -200,13 +122,50 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No pages found for this lecture' }, { status: 404 })
   }
 
-  const extracted = parseExamQuestions(pages)
+  const toInsert: Array<Record<string, unknown>> = []
+  const usedTitles = new Set<string>()
 
-  if (!extracted.length) {
+  for (const page of pages as PageData[]) {
+    const text = page.text_content?.trim() || ''
+    if (text.length < 20) continue
+
+    const lines = text
+      .split(/\s{2,}|\n/)
+      .map((l: string) => l.trim())
+      .filter((l: string) => l.length > 3)
+
+    if (!isContentSlide(lines)) continue
+
+    const title = lines[0]
+    const titleKey = title.toLowerCase().replace(/\s+/g, ' ').slice(0, 40)
+    if (usedTitles.has(titleKey)) continue
+    usedTitles.add(titleKey)
+
+    const contentLines = lines.slice(1)
+    if (contentLines.length < 1) continue
+
+    const questionText = buildQuestion(title, contentLines)
+    const answer = buildAnswer(contentLines)
+    if (!answer) continue
+
+    toInsert.push({
+      subject_id: subjectId,
+      station_number: 100 + toInsert.length,
+      question_text: questionText.slice(0, 1000),
+      answer: answer.slice(0, 2000),
+      hint: buildHint(title, contentLines),
+      difficulty: inferDifficulty(title, contentLines),
+      tags: extractTags(title + ' ' + contentLines.join(' ')),
+      image_url: page.image_url, // direct link — no fuzzy matching needed
+    })
+
+    if (toInsert.length >= 25) break
+  }
+
+  if (!toInsert.length) {
     return NextResponse.json({ error: 'Could not extract questions — slides may have minimal text' }, { status: 400 })
   }
 
-  const toInsert = extracted.map(q => ({ ...q, subject_id: subjectId }))
   const { error: insertErr } = await admin.from('questions').insert(toInsert)
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
