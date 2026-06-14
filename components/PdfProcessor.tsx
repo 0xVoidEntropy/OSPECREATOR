@@ -49,31 +49,47 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
 
           const page = await pdf.getPage(pageNum)
 
-          // Render at 1.5x scale for good quality
-          const viewport = page.getViewport({ scale: 1.5 })
+          // Render at 2x scale for quality
+          const viewport = page.getViewport({ scale: 2 })
           canvas.width = viewport.width
           canvas.height = viewport.height
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await page.render({ canvasContext: ctx as any, viewport } as any).promise
 
-          // Extract text content for keyword matching
+          // Extract text content preserving structure for question parsing
           let textContent = ''
           try {
             const tc = await page.getTextContent()
-            textContent = tc.items
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const items = tc.items as any[]
+            // Sort by vertical position descending (top to bottom), then horizontal
+            items.sort((a, b) => {
+              const yDiff = (b.transform?.[5] ?? 0) - (a.transform?.[5] ?? 0)
+              if (Math.abs(yDiff) > 5) return yDiff
+              return (a.transform?.[4] ?? 0) - (b.transform?.[4] ?? 0)
+            })
+            textContent = items
               .map((item: any) => (item.str as string) || '')
               .join(' ')
-              .toLowerCase()
-              .slice(0, 2000)
+              .slice(0, 3000)
           } catch {
             // text extraction failed — not critical
           }
 
-          // Convert canvas to blob
+          // Crop to the image-rich zone: skip top title bar (10%) and bottom text (25%)
+          // Most pathology slides: title top 10%, specimen image 10-75%, bullets 75-100%
+          const cropTop = Math.floor(canvas.height * 0.08)
+          const cropHeight = Math.floor(canvas.height * 0.72)
+          const cropCanvas = document.createElement('canvas')
+          cropCanvas.width = canvas.width
+          cropCanvas.height = cropHeight
+          const cropCtx = cropCanvas.getContext('2d')!
+          cropCtx.drawImage(canvas, 0, cropTop, canvas.width, cropHeight, 0, 0, canvas.width, cropHeight)
+
+          // Convert cropped canvas to blob
           const blob = await new Promise<Blob>((resolve, reject) => {
-            canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.85)
+            cropCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.88)
           })
 
           // Upload to Supabase storage
