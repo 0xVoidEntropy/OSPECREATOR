@@ -10,6 +10,94 @@ interface Props {
   onError: (err: string) => void
 }
 
+// Analyse canvas pixels to find the actual image region
+// Returns null if the slide is text-only (should be skipped)
+function analyseSlide(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): {
+  isImageSlide: boolean
+  cropTop: number
+  cropHeight: number
+} {
+  const w = canvas.width
+  const h = canvas.height
+
+  // Sample every 3rd pixel for speed
+  const imageData = ctx.getImageData(0, 0, w, h)
+  const data = imageData.data
+
+  // Count non-white pixels per row (sample every 3 pixels horizontally)
+  const rowNonWhite = new Float32Array(h)
+  for (let y = 0; y < h; y++) {
+    let count = 0
+    for (let x = 0; x < w; x += 3) {
+      const i = (y * w + x) * 4
+      const r = data[i], g = data[i + 1], b = data[i + 2]
+      // Anything that's not near-white
+      if (r < 230 || g < 230 || b < 230) count++
+    }
+    rowNonWhite[y] = count / (w / 3)
+  }
+
+  // A row "has image content" if >12% of sampled pixels are non-white
+  const imageThreshold = 0.12
+
+  // Identify image regions: look for blocks of consecutive image rows
+  // Text rows: thin (1-3px) bands with <40% non-white
+  // Image rows: thick blocks with varied color
+  const isImageRow = (y: number) => rowNonWhite[y] > imageThreshold
+
+  // Count total non-white pixels to detect text-only slides
+  let totalNonWhite = 0
+  for (let y = 0; y < h; y++) totalNonWhite += rowNonWhite[y]
+  const avgNonWhite = totalNonWhite / h
+
+  // Text-only slide: very sparse non-white content overall
+  if (avgNonWhite < 0.04) {
+    return { isImageSlide: false, cropTop: 0, cropHeight: h }
+  }
+
+  // Find the largest contiguous image block (block of rows all having image content)
+  // This is where the specimen image is
+  let bestStart = 0, bestEnd = h, bestLen = 0
+  let runStart = -1
+
+  for (let y = 0; y < h; y++) {
+    if (isImageRow(y)) {
+      if (runStart === -1) runStart = y
+    } else {
+      if (runStart !== -1) {
+        const len = y - runStart
+        if (len > bestLen) {
+          bestLen = len
+          bestStart = runStart
+          bestEnd = y
+        }
+        runStart = -1
+      }
+    }
+  }
+  if (runStart !== -1 && h - runStart > bestLen) {
+    bestStart = runStart
+    bestEnd = h
+    bestLen = h - runStart
+  }
+
+  // If the best image block is too small, it's likely text only
+  if (bestLen < h * 0.12) {
+    return { isImageSlide: false, cropTop: 0, cropHeight: h }
+  }
+
+  // Add small padding
+  const pad = Math.floor(h * 0.02)
+  const cropTop = Math.max(0, bestStart - pad)
+  const cropBottom = Math.min(h, bestEnd + pad)
+
+  return {
+    isImageSlide: true,
+    cropTop,
+    cropHeight: cropBottom - cropTop,
+  }
+}
+
 export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete, onError }: Props) {
   const [status, setStatus] = useState('Initializing PDF processor...')
   const [progress, setProgress] = useState(0)
@@ -22,10 +110,7 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
 
     const process = async () => {
       try {
-        // Dynamically import pdfjs-dist (client-side only)
         const pdfjsLib = await import('pdfjs-dist')
-
-        // Set worker — use CDN to avoid bundling issues
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`
 
         setStatus('Loading PDF...')
@@ -41,15 +126,16 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
         const ctx = canvas.getContext('2d')!
 
         let processed = 0
+        let stored = 0
 
         for (let pageNum = 1; pageNum <= numPages; pageNum++) {
           if (cancelled) return
 
-          setStatus(`Extracting slide ${pageNum} of ${numPages}...`)
+          setStatus(`Analysing slide ${pageNum} of ${numPages}...`)
 
           const page = await pdf.getPage(pageNum)
 
-          // Render at 2x scale for quality
+          // Render at 2x for quality
           const viewport = page.getViewport({ scale: 2 })
           canvas.width = viewport.width
           canvas.height = viewport.height
@@ -57,42 +143,45 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await page.render({ canvasContext: ctx as any, viewport } as any).promise
 
-          // Extract text content preserving structure for question parsing
+          // Pixel analysis: skip text-only slides, find image region
+          const { isImageSlide, cropTop, cropHeight } = analyseSlide(canvas, ctx)
+
+          // Extract text regardless (needed for Q&A generation)
           let textContent = ''
           try {
             const tc = await page.getTextContent()
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const items = tc.items as any[]
-            // Sort by vertical position descending (top to bottom), then horizontal
             items.sort((a, b) => {
               const yDiff = (b.transform?.[5] ?? 0) - (a.transform?.[5] ?? 0)
               if (Math.abs(yDiff) > 5) return yDiff
               return (a.transform?.[4] ?? 0) - (b.transform?.[4] ?? 0)
             })
-            textContent = items
-              .map((item: any) => (item.str as string) || '')
-              .join(' ')
-              .slice(0, 3000)
-          } catch {
-            // text extraction failed — not critical
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            textContent = items.map((item: any) => item.str || '').join(' ').slice(0, 3000)
+          } catch { /* not critical */ }
+
+          // Skip storing image if text-only slide (no specimen)
+          if (!isImageSlide) {
+            // Still store the page record without image for text extraction later
+            processed++
+            setProgress(processed)
+            continue
           }
 
-          // Crop to the image-rich zone: skip top title bar (10%) and bottom text (25%)
-          // Most pathology slides: title top 10%, specimen image 10-75%, bullets 75-100%
-          const cropTop = Math.floor(canvas.height * 0.08)
-          const cropHeight = Math.floor(canvas.height * 0.72)
+          setStatus(`Saving slide ${pageNum} of ${numPages}...`)
+
+          // Crop to detected image region
           const cropCanvas = document.createElement('canvas')
           cropCanvas.width = canvas.width
           cropCanvas.height = cropHeight
           const cropCtx = cropCanvas.getContext('2d')!
           cropCtx.drawImage(canvas, 0, cropTop, canvas.width, cropHeight, 0, 0, canvas.width, cropHeight)
 
-          // Convert cropped canvas to blob
           const blob = await new Promise<Blob>((resolve, reject) => {
             cropCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.88)
           })
 
-          // Upload to Supabase storage
           const path = `${lectureId}/page-${pageNum}.jpg`
           const { error: uploadErr } = await supabase.storage
             .from('slide-images')
@@ -102,7 +191,6 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
 
           const { data: { publicUrl } } = supabase.storage.from('slide-images').getPublicUrl(path)
 
-          // Store in lecture_pages table
           await supabase.from('lecture_pages').insert({
             lecture_id: lectureId,
             subject_id: subjectId,
@@ -111,13 +199,14 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
             text_content: textContent,
           })
 
+          stored++
           processed++
           setProgress(processed)
         }
 
         if (!cancelled) {
-          setStatus(`Done! ${numPages} slides extracted.`)
-          onComplete(numPages)
+          setStatus(`Done! ${stored} image slides extracted.`)
+          onComplete(stored)
         }
       } catch (err) {
         if (!cancelled) {
