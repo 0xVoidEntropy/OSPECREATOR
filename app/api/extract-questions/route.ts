@@ -38,14 +38,11 @@ export async function POST(request: Request) {
 
   const toInsert: Array<Record<string, unknown>> = []
 
-  // Filter to slides that have actual text content worth processing
-  const contentPages = (pages as PageData[]).filter(p => {
-    const text = p.text_content?.trim() || ''
-    return text.length > 30 && p.image_url
-  })
+  // Include any slide that has an image, even with minimal text
+  const contentPages = (pages as PageData[]).filter(p => p.image_url)
 
   if (contentPages.length === 0) {
-    return NextResponse.json({ error: 'No content slides found' }, { status: 400 })
+    return NextResponse.json({ error: 'No image slides found — re-upload the PDF first' }, { status: 400 })
   }
 
   if (geminiKey) {
@@ -107,20 +104,20 @@ If this slide has no useful clinical content (just a title, table of contents, r
     const usedTitles = new Set<string>()
 
     for (const page of contentPages) {
-      const lines = page.text_content.trim()
-        .split(/\s{2,}|\n/).map((l: string) => l.trim()).filter((l: string) => l.length > 3)
-      if (lines.length < 2) continue
+      const raw = page.text_content?.trim() || ''
+      const lines = raw.split(/\s{2,}|\n/).map((l: string) => l.trim()).filter((l: string) => l.length > 2)
 
-      const title = lines[0]
+      const title = lines[0] || `Slide ${page.page_number}`
       const key = title.toLowerCase().slice(0, 35)
       if (usedTitles.has(key)) continue
       usedTitles.add(key)
 
-      const content = lines.slice(1).filter((l: string) => l.length > 8)
-      if (content.length < 1) continue
+      const content = lines.slice(1).filter((l: string) => l.length > 4)
 
       const questionText = buildFallbackQuestion(title)
-      const answer = content.slice(0, 12).join('\n')
+      const answer = content.length > 0
+        ? content.slice(0, 12).join('\n')
+        : 'Identify the specimen shown and describe its key morphological features.'
       const hint = content.slice(0, 2).join(' | ').slice(0, 250)
 
       toInsert.push({
