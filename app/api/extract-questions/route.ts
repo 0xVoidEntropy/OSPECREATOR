@@ -57,6 +57,7 @@ async function handler(request: Request) {
 
   const toInsert: Array<Record<string, unknown>> = []
   const slidesToProcess = imagePages.slice(startIndex, startIndex + batchSize)
+  const aiErrors: string[] = []
 
   const aiKey = openRouterKey || geminiKey
 
@@ -108,7 +109,7 @@ Rules:
           })
           if (!res.ok) {
             const errBody = await res.text().catch(() => '')
-            console.error(`OpenRouter error ${res.status} page ${page.page_number}:`, errBody.slice(0, 300))
+            aiErrors.push(`p${page.page_number}:${res.status}:${errBody.slice(0, 150)}`)
             continue
           }
           const json = await res.json().catch(() => null)
@@ -203,7 +204,7 @@ Rules:
 
   if (!toInsert.length) {
     // No questions this batch but may have more slides
-    const dbg = { openRouter: !!openRouterKey, gemini: !!geminiKey, slides: imagePages.length, processed: slidesToProcess?.length ?? 0 }
+    const dbg = { openRouter: !!openRouterKey, gemini: !!geminiKey, slides: imagePages.length, processed: slidesToProcess.length, aiErrors }
     if (hasMore) return NextResponse.json({ success: true, count: 0, hasMore: true, nextIndex, usedAI: !!aiKey, debug: dbg })
     return NextResponse.json({ error: 'No questions generated', debug: dbg }, { status: 400 })
   }
@@ -211,7 +212,7 @@ Rules:
   const { error: insertErr } = await admin.from('questions').insert(toInsert)
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
-  return NextResponse.json({ success: true, count: toInsert.length, hasMore, nextIndex, usedAI: !!aiKey, debug: { openRouter: !!openRouterKey, gemini: !!geminiKey } })
+  return NextResponse.json({ success: true, count: toInsert.length, hasMore, nextIndex, usedAI: !!aiKey, debug: { openRouter: !!openRouterKey, gemini: !!geminiKey, aiErrors } })
 }
 
 function buildQuestion(title: string): string {
