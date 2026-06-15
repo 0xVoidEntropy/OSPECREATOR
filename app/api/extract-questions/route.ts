@@ -36,15 +36,12 @@ async function handler(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
-  const { data: pages } = await admin
-    .from('lecture_pages')
-    .select('page_number, text_content, image_url')
-    .eq('lecture_id', lectureId)
-    .order('page_number')
+  const [{ data: pages }, { data: subject }] = await Promise.all([
+    admin.from('lecture_pages').select('page_number, text_content, image_url').eq('lecture_id', lectureId).order('page_number'),
+    admin.from('subjects').select('name').eq('id', subjectId).single(),
+  ])
 
   if (!pages?.length) return NextResponse.json({ error: 'No pages found — re-upload the PDF first' }, { status: 404 })
-
-  const { data: subject } = await admin.from('subjects').select('name').eq('id', subjectId).single()
   const subjectName = subject?.name || 'Medicine'
 
   const imagePages = (pages as PageData[]).filter(p => {
@@ -217,14 +214,7 @@ Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before o
     return NextResponse.json({ error: 'No questions generated', debug: dbg }, { status: 400 })
   }
 
-  // Deduplicate: skip any image_url already in the questions table for this subject
-  const { data: existing } = await admin.from('questions').select('image_url').eq('subject_id', subjectId)
-  const existingUrls = new Set((existing || []).map((r: { image_url: string }) => r.image_url))
-  const deduped = toInsert.filter(q => !existingUrls.has(q.image_url as string))
-  if (!deduped.length) {
-    return NextResponse.json({ success: true, count: 0, hasMore, nextIndex, usedAI: !!aiKey, debug: { openRouter: !!openRouterKey, gemini: !!geminiKey, aiErrors } })
-  }
-  const { error: insertErr } = await admin.from('questions').insert(deduped)
+  const { error: insertErr } = await admin.from('questions').insert(toInsert)
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
   return NextResponse.json({ success: true, count: toInsert.length, hasMore, nextIndex, usedAI: !!aiKey, debug: { openRouter: !!openRouterKey, gemini: !!geminiKey, aiErrors } })
