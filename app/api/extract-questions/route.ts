@@ -147,16 +147,17 @@ Rules:
 
         let parsed: Record<string, unknown>
         try { parsed = JSON.parse(jsonMatch[0]) } catch { continue }
-        if (!parsed.question || !parsed.answer || (parsed as Record<string, unknown>).skip) continue
+        if (!parsed.question || !parsed.answer || parsed.skip) continue
 
+        const q = parsed as { question: string; answer: string; hint?: string; difficulty?: string; tags?: string[] }
         toInsert.push({
           subject_id: subjectId,
           station_number: 100 + toInsert.length,
-          question_text: parsed.question.slice(0, 1000),
-          answer: parsed.answer.slice(0, 2000),
-          hint: (parsed.hint || '').slice(0, 300),
-          difficulty: ['easy','medium','hard'].includes(parsed.difficulty) ? parsed.difficulty : 'medium',
-          tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
+          question_text: String(q.question).slice(0, 1000),
+          answer: String(q.answer).slice(0, 2000),
+          hint: String(q.hint || '').slice(0, 300),
+          difficulty: ['easy','medium','hard'].includes(q.difficulty ?? '') ? q.difficulty : 'medium',
+          tags: Array.isArray(q.tags) ? q.tags.slice(0, 5) : [],
           image_url: page.image_url,
         })
       } catch { /* skip slide */ }
