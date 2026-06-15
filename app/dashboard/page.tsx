@@ -3,8 +3,8 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { Subject, UserProgress, Question } from '@/types'
-import { BookOpen, LogOut, Play, Clock, Trophy, Target, Upload, ChevronRight, Microscope, TrendingUp } from 'lucide-react'
+import { Subject } from '@/types'
+import { BookOpen, LogOut, Clock, Trophy, Target, Upload, ChevronRight, Microscope, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 
 interface SubjectStats extends Subject {
@@ -30,7 +30,7 @@ export default function Dashboard() {
     })
 
     const [{ data: subjectsData }, { data: questionsData }, { data: progressData }] = await Promise.all([
-      supabase.from('subjects').select('*').order('name'),
+      supabase.from('subjects').select('*').order('year').order('block').order('display_order'),
       supabase.from('questions').select('id, subject_id'),
       supabase.from('user_progress').select('question_id, answered').eq('user_id', session.user.id),
     ])
@@ -208,15 +208,19 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Subjects Grid */}
-        <div>
-          <h3 className="text-lg font-bold text-white mb-4">Study by Subject</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {subjects.map(subject => {
+        {/* Subjects grouped by Year and Block */}
+        <div className="space-y-8">
+          <h3 className="text-lg font-bold text-white">Study by Subject</h3>
+          {(() => {
+            const withYear = subjects.filter(s => s.total > 0 && s.year != null)
+            const noYear = subjects.filter(s => s.total > 0 && s.year == null)
+
+            const years = [...new Set(withYear.map(s => s.year as number))].sort()
+
+            const SubjectCard = ({ subject }: { subject: SubjectStats }) => {
               const pct = subject.total > 0 ? Math.round((subject.answered / subject.total) * 100) : 0
               return (
                 <Link
-                  key={subject.id}
                   href={`/subjects/${subject.id}`}
                   className={`group bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-2xl p-5 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg`}
                 >
@@ -246,8 +250,45 @@ export default function Dashboard() {
                   </div>
                 </Link>
               )
-            })}
-          </div>
+            }
+
+            const yearLabel = (y: number) => y === 1 ? '1st Year' : y === 2 ? '2nd Year' : '3rd Year'
+
+            return (
+              <>
+                {years.map(yr => {
+                  const yearSubjects = withYear.filter(s => s.year === yr)
+                  const blocks = [...new Set(yearSubjects.map(s => s.block ?? ''))].sort()
+                  return (
+                    <div key={yr}>
+                      <h4 className="text-base font-bold text-cyan-400 mb-4">{yearLabel(yr)}</h4>
+                      <div className="space-y-6">
+                        {blocks.map(blk => {
+                          const blockSubjects = yearSubjects.filter(s => (s.block ?? '') === blk)
+                          return (
+                            <div key={blk}>
+                              <p className="text-sm font-semibold text-slate-300 mb-3 pl-1 border-l-2 border-slate-600 pl-3">{blk}</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {blockSubjects.map(s => <SubjectCard key={s.id} subject={s} />)}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+                {noYear.length > 0 && (
+                  <div>
+                    <h4 className="text-base font-bold text-slate-400 mb-4">Other Subjects</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {noYear.map(s => <SubjectCard key={s.id} subject={s} />)}
+                    </div>
+                  </div>
+                )}
+              </>
+            )
+          })()}
         </div>
       </main>
 

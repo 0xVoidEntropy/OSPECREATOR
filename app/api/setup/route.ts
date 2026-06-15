@@ -249,6 +249,12 @@ export async function GET(request: Request) {
     alter table questions add column if not exists image_crop jsonb;
   `)
 
+  await sql('Add year/block/display_order columns to subjects', `
+    alter table subjects add column if not exists year int;
+    alter table subjects add column if not exists block text;
+    alter table subjects add column if not exists display_order int default 0;
+  `)
+
   await sql('Enable RLS on all tables', `
     alter table subjects enable row level security;
     alter table questions enable row level security;

@@ -5,6 +5,9 @@ export interface Subject {
   color: string
   icon: string
   created_at: string
+  year: number | null
+  block: string | null
+  display_order: number
 }
 
 export interface Question {

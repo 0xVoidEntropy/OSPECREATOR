@@ -8,6 +8,9 @@ create table if not exists subjects (
   description text,
   color text default '#0891b2',
   icon text default '🔬',
+  year int,
+  block text,
+  display_order int default 0,
   created_at timestamptz default now()
 );
 
