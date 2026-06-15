@@ -82,16 +82,10 @@ Rules:
 
     for (const page of slidesToProcess) {
       try {
-        const imgRes = await fetch(page.image_url)
-        if (!imgRes.ok) continue
-        const imgBuffer = await imgRes.arrayBuffer()
-        // Buffer.from avoids stack overflow that btoa+spread causes on large images
-        const base64 = Buffer.from(imgBuffer).toString('base64')
-        const dataUrl = `data:image/jpeg;base64,${base64}`
-
         let raw = ''
 
         if (useOpenRouter) {
+          // Use public URL directly — base64 encoding large slides can exceed OpenRouter's payload limit
           const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -106,29 +100,39 @@ Rules:
                 role: 'user',
                 content: [
                   { type: 'text', text: prompt(subjectName) },
-                  { type: 'image_url', image_url: { url: dataUrl } },
+                  { type: 'image_url', image_url: { url: page.image_url } },
                 ]
               }],
               max_tokens: 600,
             })
           })
-          if (!res.ok) continue
+          if (!res.ok) {
+            const errBody = await res.text().catch(() => '')
+            console.error(`OpenRouter error ${res.status} page ${page.page_number}:`, errBody.slice(0, 300))
+            continue
+          }
           const json = await res.json().catch(() => null)
           raw = json?.choices?.[0]?.message?.content || ''
-        } else if (isGeminiOAuth) {
-          const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt(subjectName) }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }] })
-          })
-          if (!res.ok) continue
-          const json = await res.json().catch(() => null)
-          raw = json?.candidates?.[0]?.content?.parts?.[0]?.text || ''
         } else {
-          const { GoogleGenerativeAI } = await import('@google/generative-ai')
-          const model = new GoogleGenerativeAI(geminiKey!).getGenerativeModel({ model: 'gemini-1.5-flash' })
-          const result = await model.generateContent([prompt(subjectName), { inlineData: { data: base64, mimeType: 'image/jpeg' } }])
-          raw = result.response.text()
+          // Gemini: fetch image as base64
+          const imgRes = await fetch(page.image_url)
+          if (!imgRes.ok) continue
+          const base64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64')
+          if (isGeminiOAuth) {
+            const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
+              body: JSON.stringify({ contents: [{ parts: [{ text: prompt(subjectName) }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }] })
+            })
+            if (!res.ok) continue
+            const json = await res.json().catch(() => null)
+            raw = json?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+          } else {
+            const { GoogleGenerativeAI } = await import('@google/generative-ai')
+            const model = new GoogleGenerativeAI(geminiKey!).getGenerativeModel({ model: 'gemini-1.5-flash' })
+            const result = await model.generateContent([prompt(subjectName), { inlineData: { data: base64, mimeType: 'image/jpeg' } }])
+            raw = result.response.text()
+          }
         }
 
         raw = raw.trim()
