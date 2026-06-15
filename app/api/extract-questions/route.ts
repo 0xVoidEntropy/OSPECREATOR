@@ -45,18 +45,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No image slides found — re-upload the PDF first' }, { status: 400 })
   }
 
+  let geminiWorked = false
   if (geminiKey) {
-    // === AI PATH: Use Gemini Flash (free tier) ===
-    const genAI = new GoogleGenerativeAI(geminiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    try {
+      // === AI PATH: Use Gemini Flash (free tier) ===
+      const genAI = new GoogleGenerativeAI(geminiKey)
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
-    for (const page of contentPages) {
-      const text = page.text_content.trim()
+      for (const page of contentPages) {
+        const text = (page.text_content || '').trim()
 
-      const prompt = `You are a medical OSPE examiner. I have a ${subjectName} lecture slide with this text content:
+        const prompt = `You are a medical OSPE examiner. I have a ${subjectName} lecture slide with this text content:
 
 ---
-${text.slice(0, 1500)}
+${text.slice(0, 1500) || '(no text — image only slide)'}
 ---
 
 Generate ONE OSPE exam station question from this slide. The question should:
@@ -68,38 +70,44 @@ Generate ONE OSPE exam station question from this slide. The question should:
 Reply ONLY with this JSON (no markdown, no code blocks):
 {"question":"<multi-line question text with numbered parts>","answer":"<detailed model answer>","hint":"<one concise exam tip or mnemonic>","difficulty":"easy|medium|hard","tags":["<word>","<word>"]}
 
-If this slide has no useful clinical content (just a title, table of contents, references), reply with: {"skip":true}`
+If this slide has no useful clinical content (title page, table of contents, references), reply with: {"skip":true}`
 
-      try {
-        const result = await model.generateContent(prompt)
-        const raw = result.response.text().trim()
+        try {
+          const result = await model.generateContent(prompt)
+          const raw = result.response.text().trim()
 
-        if (raw.includes('"skip":true')) continue
+          if (raw.includes('"skip":true')) continue
 
-        const jsonMatch = raw.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) continue
+          const jsonMatch = raw.match(/\{[\s\S]*\}/)
+          if (!jsonMatch) continue
 
-        const parsed = JSON.parse(jsonMatch[0])
-        if (!parsed.question || !parsed.answer) continue
+          const parsed = JSON.parse(jsonMatch[0])
+          if (!parsed.question || !parsed.answer) continue
 
-        toInsert.push({
-          subject_id: subjectId,
-          station_number: 100 + toInsert.length,
-          question_text: parsed.question.slice(0, 1000),
-          answer: parsed.answer.slice(0, 2000),
-          hint: (parsed.hint || '').slice(0, 300),
-          difficulty: ['easy', 'medium', 'hard'].includes(parsed.difficulty) ? parsed.difficulty : 'medium',
-          tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
-          image_url: page.image_url,
-        })
-      } catch {
-        // Skip failed slide, continue with others
+          toInsert.push({
+            subject_id: subjectId,
+            station_number: 100 + toInsert.length,
+            question_text: parsed.question.slice(0, 1000),
+            answer: parsed.answer.slice(0, 2000),
+            hint: (parsed.hint || '').slice(0, 300),
+            difficulty: ['easy', 'medium', 'hard'].includes(parsed.difficulty) ? parsed.difficulty : 'medium',
+            tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
+            image_url: page.image_url,
+          })
+          geminiWorked = true
+        } catch { /* skip this slide */ }
+
+        // Respect free tier rate limits (15 RPM)
+        await new Promise(r => setTimeout(r, 250))
       }
-
-      // Small delay to respect free tier rate limits (15 RPM)
-      await new Promise(r => setTimeout(r, 200))
+    } catch {
+      // Gemini auth/network error — fall through to rule-based
+      geminiWorked = false
     }
-  } else {
+  }
+
+  // Fall back to rule-based if Gemini not configured or failed
+  if (!geminiKey || !geminiWorked) {
     // === FALLBACK: Rule-based extraction (no API key needed) ===
     const usedTitles = new Set<string>()
 
