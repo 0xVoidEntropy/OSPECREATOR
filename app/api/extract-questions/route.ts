@@ -44,11 +44,8 @@ async function handler(request: Request) {
   if (!pages?.length) return NextResponse.json({ error: 'No pages found — re-upload the PDF first' }, { status: 404 })
   const subjectName = subject?.name || 'Medicine'
 
-  const imagePages = (pages as PageData[]).filter(p => {
-    if (!p.image_url) return false
-    const firstLine = (p.text_content || '').trim().split(/\s{3,}|\n/)[0] || ''
-    return !SKIP_TITLES.test(firstLine.trim())
-  })
+  // Let AI decide what to skip — no code-based title filtering
+  const imagePages = (pages as PageData[]).filter(p => !!p.image_url)
 
   if (!imagePages.length) return NextResponse.json({ error: 'No content slides found — try re-uploading the PDF' }, { status: 400 })
 
