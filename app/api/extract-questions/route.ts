@@ -77,7 +77,7 @@ OUTPUT "SKIP" (nothing else) if the slide is ANY of these:
 OUTPUT raw JSON (no markdown) only if the slide contains an ACTUAL specimen image (histology, gross pathology, microscopy, biopsy photo):
 {"question":"Station — [topic]\\n1. [clinical question]\\n2. [morphology question]\\n3. [diagnosis question]","answer":"1. [answer]\\n2. [answer]\\n3. [answer]","hint":"[key teaching point]","difficulty":"easy","tags":["tag1","tag2"],"crop":{"x":0,"y":0,"w":100,"h":100}}
 
-The "crop" field must describe the bounding box of the SPECIMEN IMAGE ONLY (not the text/title area), as percentages of the slide (0-100). Example: if the specimen photo occupies the bottom-right 60% of the slide, use {"x":40,"y":30,"w":60,"h":70}.
+"crop" = bounding box of the specimen photo only (not slide title/text), as % of slide dimensions. Example if photo is bottom half: {"x":0,"y":50,"w":100,"h":50}.
 
 Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before or after the JSON.`
 
@@ -91,7 +91,7 @@ Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before o
           ]
           for (const model of FREE_VISION_MODELS) {
             const ctrl = new AbortController()
-            const timer = setTimeout(() => ctrl.abort(), 8000)
+            const timer = setTimeout(() => ctrl.abort(), 6000)
             const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
               signal: ctrl.signal,
               method: 'POST',
@@ -107,7 +107,7 @@ Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before o
                   { type: 'text', text: prompt(subjectName) },
                   { type: 'image_url', image_url: { url: page.image_url } },
                 ]}],
-                max_tokens: 600,
+                max_tokens: 500,
               })
             })
             clearTimeout(timer)
