@@ -307,7 +307,7 @@ export default function UploadPage() {
                           const res = await fetch('/api/extract-questions', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ lectureId: job.lectureId, subjectId: job.subjectId, startIndex: nextIndex, batchSize: 8 }),
+                            body: JSON.stringify({ lectureId: job.lectureId, subjectId: job.subjectId, startIndex: nextIndex, batchSize: 1 }),
                           })
                           const data = await res.json()
                           if (!res.ok) { setExtractResult(`⚠ Question extraction: ${data.error}`); break }

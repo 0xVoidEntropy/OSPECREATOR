@@ -90,7 +90,10 @@ Rules:
             'nvidia/nemotron-nano-12b-v2-vl:free',
           ]
           for (const model of FREE_VISION_MODELS) {
+            const ctrl = new AbortController()
+            const timer = setTimeout(() => ctrl.abort(), 8000)
             const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              signal: ctrl.signal,
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -107,6 +110,7 @@ Rules:
                 max_tokens: 600,
               })
             })
+            clearTimeout(timer)
             if (!res.ok) {
               const errBody = await res.text().catch(() => '')
               aiErrors.push(`p${page.page_number}:${model}:${res.status}:${errBody.slice(0, 100)}`)
