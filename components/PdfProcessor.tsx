@@ -161,22 +161,17 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
             textContent = items.map((item: any) => item.str || '').join(' ').slice(0, 3000)
           } catch { /* not critical */ }
 
-          // Skip storing image if text-only slide (no specimen)
-          if (!isImageSlide) {
-            // Still store the page record without image for text extraction later
-            processed++
-            setProgress(processed)
-            continue
-          }
-
           setStatus(`Saving slide ${pageNum} of ${numPages}...`)
 
-          // Crop to detected image region
+          // Use smart crop if image region detected, otherwise crop fixed 10%-78%
+          const finalCropTop = isImageSlide ? cropTop : Math.floor(canvas.height * 0.10)
+          const finalCropHeight = isImageSlide ? cropHeight : Math.floor(canvas.height * 0.68)
+
           const cropCanvas = document.createElement('canvas')
           cropCanvas.width = canvas.width
-          cropCanvas.height = cropHeight
+          cropCanvas.height = finalCropHeight
           const cropCtx = cropCanvas.getContext('2d')!
-          cropCtx.drawImage(canvas, 0, cropTop, canvas.width, cropHeight, 0, 0, canvas.width, cropHeight)
+          cropCtx.drawImage(canvas, 0, finalCropTop, canvas.width, finalCropHeight, 0, 0, canvas.width, finalCropHeight)
 
           const blob = await new Promise<Blob>((resolve, reject) => {
             cropCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.88)

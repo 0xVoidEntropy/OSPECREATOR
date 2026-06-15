@@ -136,7 +136,14 @@ If this slide has no useful clinical content (just a title, table of contents, r
   }
 
   if (!toInsert.length) {
-    return NextResponse.json({ error: 'Could not generate questions from slide content' }, { status: 400 })
+    return NextResponse.json({
+      error: 'Could not generate questions from slide content',
+      debug: {
+        totalPages: pages.length,
+        contentPages: contentPages.length,
+        hasGeminiKey: !!geminiKey,
+      }
+    }, { status: 400 })
   }
 
   const { error: insertErr } = await admin.from('questions').insert(toInsert)
