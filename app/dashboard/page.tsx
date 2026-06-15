@@ -192,7 +192,7 @@ export default function Dashboard() {
           </Link>
 
           <Link
-            href="/upload"
+            href="/admin"
             className="group bg-gradient-to-r from-violet-500/20 to-purple-600/20 border border-violet-500/30 hover:border-violet-400/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-violet-500/10"
           >
             <div className="flex items-center gap-4">
@@ -200,8 +200,8 @@ export default function Dashboard() {
                 <Upload className="w-6 h-6 text-violet-400" />
               </div>
               <div>
-                <h3 className="font-bold text-white">Upload Lecture</h3>
-                <p className="text-slate-400 text-sm">Add PDFs & study materials</p>
+                <h3 className="font-bold text-white">Admin Import</h3>
+                <p className="text-slate-400 text-sm">Bulk upload curriculum PDFs</p>
               </div>
               <ChevronRight className="w-5 h-5 text-slate-500 ml-auto group-hover:translate-x-1 transition-transform" />
             </div>
