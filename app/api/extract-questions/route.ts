@@ -146,11 +146,11 @@ If this slide has no useful clinical content (title page, table of contents, ref
   if (!toInsert.length) {
     return NextResponse.json({
       error: 'Could not generate questions from slide content',
-      debug: {
-        totalPages: pages.length,
-        contentPages: contentPages.length,
-        hasGeminiKey: !!geminiKey,
-      }
+      totalPages: pages.length,
+      pagesWithImage: contentPages.length,
+      hasGeminiKey: !!geminiKey,
+      geminiWorked,
+      samplePage: pages[0] ? { image_url: pages[0].image_url, textLen: pages[0].text_content?.length } : null,
     }, { status: 400 })
   }
 
