@@ -66,20 +66,18 @@ async function handler(request: Request) {
     const isGeminiOAuth = !useOpenRouter && (geminiKey?.startsWith('AQ.') || geminiKey?.startsWith('ya29.'))
 
     const prompt = (subjectName: string) =>
-      `You are a medical OSPE examiner creating exam questions from ${subjectName} lecture slides.
+      `You are a medical OSPE examiner. Analyze this ${subjectName} lecture slide image.
 
-Look at this slide image carefully.
+OUTPUT "SKIP" (nothing else) if the slide is ANY of these:
+- Title, objectives, contents, references, summary, introduction
+- Pure text with no visible specimen, tissue, or microscopy image
+- Diagram or illustration only (no actual histology/pathology photo)
+- Blank or near-blank slide
 
-If it is a title slide, objectives slide, table of contents, references, a diagram with no clinical specimen, or has nothing examinable — output exactly: SKIP
+OUTPUT raw JSON (no markdown) only if the slide contains an ACTUAL specimen image (histology, gross pathology, microscopy, biopsy photo):
+{"question":"Station — [topic]\\n1. [clinical question]\\n2. [morphology question]\\n3. [diagnosis question]","answer":"1. [answer]\\n2. [answer]\\n3. [answer]","hint":"[key teaching point]","difficulty":"easy","tags":["tag1","tag2"]}
 
-Otherwise output a JSON object (no markdown, no code block, just raw JSON):
-{"question":"Station — [specific topic name]\\n1. [first clinical question]\\n2. [second question about features/morphology]\\n3. [third question about diagnosis/mechanism]","answer":"1. [full answer to question 1]\\n2. [full answer to question 2]\\n3. [full answer to question 3]","hint":"[one teaching point or mnemonic]","difficulty":"easy","tags":["pathology","kidney"]}
-
-Rules:
-- Replace difficulty with easy, medium, or hard
-- Tags should be 2-5 relevant medical terms
-- Answers must be specific and detailed, not generic
-- Do not wrap in markdown or add any text before/after the JSON`
+Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before or after the JSON.`
 
     for (const page of slidesToProcess) {
       try {
@@ -175,8 +173,8 @@ Rules:
     }
   }
 
-  // Rule-based fallback — only for slides with detectable specimen content
-  if (!toInsert.length) {
+  // Rule-based fallback — only when no AI key is configured
+  if (!aiKey && !toInsert.length) {
     const seen = new Set<string>()
     for (const page of imagePages) {
       const text = (page.text_content || '').trim()
@@ -215,7 +213,14 @@ Rules:
     return NextResponse.json({ error: 'No questions generated', debug: dbg }, { status: 400 })
   }
 
-  const { error: insertErr } = await admin.from('questions').insert(toInsert)
+  // Deduplicate: skip any image_url already in the questions table for this subject
+  const { data: existing } = await admin.from('questions').select('image_url').eq('subject_id', subjectId)
+  const existingUrls = new Set((existing || []).map((r: { image_url: string }) => r.image_url))
+  const deduped = toInsert.filter(q => !existingUrls.has(q.image_url as string))
+  if (!deduped.length) {
+    return NextResponse.json({ success: true, count: 0, hasMore, nextIndex, usedAI: !!aiKey, debug: { openRouter: !!openRouterKey, gemini: !!geminiKey, aiErrors } })
+  }
+  const { error: insertErr } = await admin.from('questions').insert(deduped)
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
   return NextResponse.json({ success: true, count: toInsert.length, hasMore, nextIndex, usedAI: !!aiKey, debug: { openRouter: !!openRouterKey, gemini: !!geminiKey, aiErrors } })
