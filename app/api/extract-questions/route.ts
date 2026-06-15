@@ -11,7 +11,10 @@ interface PageData {
   image_url: string
 }
 
-const SKIP_TITLES = /^(college|university|department|faculty|objectives?|contents?|references?|outline|introduction|thank you|the end|ims |prepared by|presented by)/i
+const SKIP_TITLES = /^(college|university|department|faculty|objectives?|contents?|references?|outline|introduction|thank you|the end|ims |prepared by|presented by|virtual slides?|glass slides?|morphological changes|lab\b|laboratory|session \d|lecture \d|week \d|revision|summary|overview|agenda|schedule|timetable|learning outcomes?|at the end|by the end)/i
+
+// Slides that are clearly non-specimen: all-text diagram slides, etc.
+const SPECIMEN_KEYWORDS = /histol|pathol|specimen|micro|macro|gross|biopsy|stain|H&E|PAS|kidney|liver|lung|heart|brain|spleen|skin|bone|muscle|vessel|artery|vein|glomerul|nephro|hepat|pneumo|carcinom|adenom|sarcoma|lymphom|necrosis|fibrosis|inflam|edema|thrombus|infarct|nodule|granuloma|pannus|synovit|islet|pancrea|retina|alveol|tumor|tumour|cancer|lesion|cell|tissue|organ/i
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -147,16 +150,22 @@ Otherwise reply ONLY with this exact JSON (no markdown):
     }
   }
 
-  // Rule-based fallback
+  // Rule-based fallback — only for slides with detectable specimen content
   if (!toInsert.length) {
     const seen = new Set<string>()
     for (const page of imagePages) {
-      const lines = (page.text_content || '').trim().split(/\s{3,}|\n/).map(l => l.trim()).filter(l => l.length > 2)
-      const title = lines[0] || `Slide ${page.page_number}`
+      const text = (page.text_content || '').trim()
+      const lines = text.split(/\s{3,}|\n/).map((l: string) => l.trim()).filter((l: string) => l.length > 2)
+      const title = lines[0] || ''
+      if (!title) continue
+      // Skip duplicates
       const key = title.toLowerCase().slice(0, 35)
       if (seen.has(key)) continue
       seen.add(key)
-      const content = lines.slice(1).filter(l => l.length > 4)
+      // Only generate questions for slides that mention actual clinical/specimen content
+      const allText = title + ' ' + lines.join(' ')
+      if (!SPECIMEN_KEYWORDS.test(allText)) continue
+      const content = lines.slice(1).filter((l: string) => l.length > 4)
       toInsert.push({
         subject_id: subjectId,
         station_number: 100 + toInsert.length,
@@ -164,7 +173,7 @@ Otherwise reply ONLY with this exact JSON (no markdown):
         answer: content.length ? content.slice(0, 10).join('\n') : 'Identify and describe the specimen shown.',
         hint: content.slice(0, 2).join(' | ').slice(0, 250),
         difficulty: 'medium',
-        tags: extractTags(title + ' ' + content.join(' ')),
+        tags: extractTags(allText),
         image_url: page.image_url,
       })
       if (toInsert.length >= 20) break
