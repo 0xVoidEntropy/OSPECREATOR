@@ -11,7 +11,7 @@ interface PageData {
   image_url: string
 }
 
-const SKIP_TITLES = /^(college|university|department|faculty|objectives?|contents?|references?|outline|introduction|thank you|the end|ims|ims ospe|prepared by|presented by|dr\.|prof\.)/i
+const SKIP_TITLES = /^(college|university|department|faculty|objectives?|contents?|references?|outline|introduction|thank you|the end|ims |prepared by|presented by)/i
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -24,6 +24,7 @@ export async function POST(request: Request): Promise<Response> {
 async function handler(request: Request) {
   const { lectureId, subjectId } = await request.json()
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const openRouterKey = process.env.OPENROUTER_API_KEY
   const geminiKey = process.env.GOOGLE_AI_API_KEY
 
   if (!serviceKey) return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }, { status: 500 })
@@ -43,20 +44,29 @@ async function handler(request: Request) {
   const { data: subject } = await admin.from('subjects').select('name').eq('id', subjectId).single()
   const subjectName = subject?.name || 'Medicine'
 
-  const imagePagesAll = (pages as PageData[]).filter(p => p.image_url)
-  if (!imagePagesAll.length) return NextResponse.json({ error: 'No image slides stored — re-upload the PDF' }, { status: 400 })
-
-  // Skip pure title/intro slides based on text content
-  const imagePages = imagePagesAll.filter(p => {
+  const imagePages = (pages as PageData[]).filter(p => {
+    if (!p.image_url) return false
     const firstLine = (p.text_content || '').trim().split(/\s{3,}|\n/)[0] || ''
     return !SKIP_TITLES.test(firstLine.trim())
   })
 
+  if (!imagePages.length) return NextResponse.json({ error: 'No content slides found — try re-uploading the PDF' }, { status: 400 })
+
   const toInsert: Array<Record<string, unknown>> = []
 
-  if (geminiKey) {
-    // Support both AIzaSy (API key) and AQ. (OAuth token) formats
-    const isOAuthToken = geminiKey.startsWith('AQ.') || geminiKey.startsWith('ya29.')
+  const aiKey = openRouterKey || geminiKey
+
+  if (aiKey) {
+    const useOpenRouter = !!openRouterKey
+    const isGeminiOAuth = !useOpenRouter && (geminiKey?.startsWith('AQ.') || geminiKey?.startsWith('ya29.'))
+
+    const prompt = (subjectName: string) =>
+      `You are a medical OSPE examiner. Look at this ${subjectName} lecture slide image and generate ONE OSPE exam station question.
+
+If the slide is a title page, objectives, references, or has no clinical specimen — reply ONLY: {"skip":true}
+
+Otherwise reply ONLY with this exact JSON (no markdown):
+{"question":"Station — [Topic]\\n1. [Clinical question about what is shown]\\n2. [Morphology/features question]\\n3. [Diagnosis or mechanism question]","answer":"1. [Detailed answer]\\n2. [Detailed answer]\\n3. [Detailed answer]","hint":"[Mnemonic or key teaching point]","difficulty":"easy|medium|hard","tags":["tag1","tag2"]}`
 
     for (const page of imagePages) {
       try {
@@ -64,53 +74,52 @@ async function handler(request: Request) {
         if (!imgRes.ok) continue
         const imgBuffer = await imgRes.arrayBuffer()
         const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)))
-
-        const prompt = `You are a medical OSPE examiner looking at a ${subjectName} lecture slide image.
-
-Analyse what you see in this slide and generate ONE OSPE exam station question.
-
-If this slide is just a title, intro, objectives, references, or has no clinical specimen/pathology image — reply ONLY with: {"skip":true}
-
-Otherwise reply ONLY with this JSON (no markdown, no code blocks):
-{"question":"Station X — [Topic]\\n1. [Question]\\n2. [Question]\\n3. [Question]","answer":"1. [Answer]\\n2. [Answer]\\n3. [Answer]","hint":"[Key teaching point or mnemonic]","difficulty":"easy|medium|hard","tags":["tag1","tag2"]}`
+        const dataUrl = `data:image/jpeg;base64,${base64}`
 
         let raw = ''
 
-        if (isOAuthToken) {
-          // Use REST API directly with Bearer token
-          const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+        if (useOpenRouter) {
+          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${geminiKey}`,
+              'Authorization': `Bearer ${openRouterKey}`,
+              'HTTP-Referer': 'https://ospecreator.vercel.app',
+              'X-Title': 'OSPE Study Helper',
             },
             body: JSON.stringify({
-              contents: [{
-                parts: [
-                  { text: prompt },
-                  { inline_data: { mime_type: 'image/jpeg', data: base64 } }
+              model: 'meta-llama/llama-3.2-11b-vision-instruct:free',
+              messages: [{
+                role: 'user',
+                content: [
+                  { type: 'text', text: prompt(subjectName) },
+                  { type: 'image_url', image_url: { url: dataUrl } },
                 ]
-              }]
+              }],
+              max_tokens: 600,
             })
+          })
+          const json = await res.json()
+          raw = json?.choices?.[0]?.message?.content || ''
+        } else if (isGeminiOAuth) {
+          const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt(subjectName) }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }] })
           })
           const json = await res.json()
           raw = json?.candidates?.[0]?.content?.parts?.[0]?.text || ''
         } else {
-          // Use SDK with API key
           const { GoogleGenerativeAI } = await import('@google/generative-ai')
-          const genAI = new GoogleGenerativeAI(geminiKey)
-          const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-          const result = await model.generateContent([
-            prompt,
-            { inlineData: { data: base64, mimeType: 'image/jpeg' } }
-          ])
+          const model = new GoogleGenerativeAI(geminiKey!).getGenerativeModel({ model: 'gemini-1.5-flash' })
+          const result = await model.generateContent([prompt(subjectName), { inlineData: { data: base64, mimeType: 'image/jpeg' } }])
           raw = result.response.text()
         }
 
         raw = raw.trim()
         if (!raw || raw.includes('"skip":true')) continue
 
-        const jsonMatch = raw.match(/\{[\s\S]*\}/)
+        const jsonMatch = raw.match(/\{[\s\S]*?\}(?=\s*$|\s*\n)/) || raw.match(/\{[\s\S]*\}/)
         if (!jsonMatch) continue
 
         const parsed = JSON.parse(jsonMatch[0])
@@ -122,32 +131,30 @@ Otherwise reply ONLY with this JSON (no markdown, no code blocks):
           question_text: parsed.question.slice(0, 1000),
           answer: parsed.answer.slice(0, 2000),
           hint: (parsed.hint || '').slice(0, 300),
-          difficulty: ['easy', 'medium', 'hard'].includes(parsed.difficulty) ? parsed.difficulty : 'medium',
+          difficulty: ['easy','medium','hard'].includes(parsed.difficulty) ? parsed.difficulty : 'medium',
           tags: Array.isArray(parsed.tags) ? parsed.tags.slice(0, 5) : [],
           image_url: page.image_url,
         })
-      } catch { /* skip this slide */ }
+      } catch { /* skip slide */ }
 
-      await new Promise(r => setTimeout(r, 300))
+      await new Promise(r => setTimeout(r, 400))
     }
   }
 
-  // Fallback: rule-based from text if Gemini not set or produced nothing
+  // Rule-based fallback
   if (!toInsert.length) {
-    const usedTitles = new Set<string>()
+    const seen = new Set<string>()
     for (const page of imagePages) {
-      const lines = (page.text_content || '').trim()
-        .split(/\s{3,}|\n/).map(l => l.trim()).filter(l => l.length > 2)
+      const lines = (page.text_content || '').trim().split(/\s{3,}|\n/).map(l => l.trim()).filter(l => l.length > 2)
       const title = lines[0] || `Slide ${page.page_number}`
-      if (SKIP_TITLES.test(title)) continue
       const key = title.toLowerCase().slice(0, 35)
-      if (usedTitles.has(key)) continue
-      usedTitles.add(key)
+      if (seen.has(key)) continue
+      seen.add(key)
       const content = lines.slice(1).filter(l => l.length > 4)
       toInsert.push({
         subject_id: subjectId,
         station_number: 100 + toInsert.length,
-        question_text: buildFallbackQuestion(title),
+        question_text: buildQuestion(title),
         answer: content.length ? content.slice(0, 10).join('\n') : 'Identify and describe the specimen shown.',
         hint: content.slice(0, 2).join(' | ').slice(0, 250),
         difficulty: 'medium',
@@ -158,26 +165,25 @@ Otherwise reply ONLY with this JSON (no markdown, no code blocks):
     }
   }
 
-  if (!toInsert.length) return NextResponse.json({ error: 'No questions could be generated', totalSlides: imagePages.length }, { status: 400 })
+  if (!toInsert.length) return NextResponse.json({ error: 'No questions generated', slides: imagePages.length, aiAvailable: !!aiKey }, { status: 400 })
 
   const { error: insertErr } = await admin.from('questions').insert(toInsert)
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
-  return NextResponse.json({ success: true, count: toInsert.length })
+  return NextResponse.json({ success: true, count: toInsert.length, usedAI: !!aiKey })
 }
 
-function buildFallbackQuestion(title: string): string {
-  const t = title.toLowerCase()
-  if (/kidney|nephropat|glomerul/i.test(t)) return `${title}\n1. Identify the renal pathology shown.\n2. Describe the histological features.\n3. What is the diagnosis?`
-  if (/pancrea|islet/i.test(t)) return `${title}\n1. Identify the tissue.\n2. Describe pathological changes.\n3. Type I or Type II DM?`
-  if (/retina/i.test(t)) return `${title}\n1. Name the two types of diabetic retinopathy.\n2. Features of the type shown?\n3. What drives neovascularization?`
-  if (/pannus|synovit|joint/i.test(t)) return `${title}\n1. Identify the process.\n2. Name cells involved.\n3. End result?`
-  if (/nodule/i.test(t)) return `${title}\n1. Describe the three-layer structure.\n2. Most common location?\n3. Is this a granuloma?`
-  if (/pneumonia|lung|alveol/i.test(t)) return `${title}\n1. Identify the pneumonia type.\n2. Histological features?\n3. Causative organisms?`
+function buildQuestion(title: string): string {
+  if (/kidney|nephropat|glomerul/i.test(title)) return `${title}\n1. Identify the renal pathology.\n2. Describe histological features.\n3. What is the diagnosis?`
+  if (/pancrea|islet/i.test(title)) return `${title}\n1. Identify the tissue.\n2. Describe changes.\n3. Type I or Type II DM?`
+  if (/retina/i.test(title)) return `${title}\n1. Two types of diabetic retinopathy?\n2. Features of type shown?\n3. What drives neovascularization?`
+  if (/pannus|synovit|joint/i.test(title)) return `${title}\n1. Identify the process.\n2. Cells involved?\n3. End result?`
+  if (/nodule/i.test(title)) return `${title}\n1. Three-layer structure?\n2. Most common location?\n3. Is this a granuloma?`
+  if (/pneumonia|lung|alveol/i.test(title)) return `${title}\n1. Type of pneumonia?\n2. Histological features?\n3. Causative organisms?`
   return `${title}\n1. Identify the specimen shown.\n2. Describe the morphological features.\n3. What is the diagnosis?`
 }
 
 function extractTags(text: string): string[] {
   const terms = ['kidney','nephropathy','diabetes','pancreas','retina','rheumatoid','pannus','nodule','pneumonia','lung','amyloid','histology']
-  return terms.filter(tag => text.toLowerCase().includes(tag.toLowerCase())).slice(0, 5)
+  return terms.filter(t => text.toLowerCase().includes(t.toLowerCase())).slice(0, 5)
 }
