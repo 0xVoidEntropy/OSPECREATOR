@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 export const maxDuration = 60
 
 interface PageData {
@@ -13,7 +14,15 @@ interface PageData {
 
 const SKIP_TITLES = /^(college|university|department|faculty|objectives?|contents?|references?|outline|introduction|thank you|the end|ims|ims ospe|prepared by|presented by|dr\.|prof\.)/i
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
+  try {
+    return await handler(request)
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
+}
+
+async function handler(request: Request) {
   const { lectureId, subjectId } = await request.json()
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const geminiKey = process.env.GOOGLE_AI_API_KEY
@@ -56,7 +65,7 @@ export async function POST(request: Request) {
         const imgRes = await fetch(page.image_url)
         if (!imgRes.ok) continue
         const imgBuffer = await imgRes.arrayBuffer()
-        const base64 = Buffer.from(imgBuffer).toString('base64')
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)))
         const mimeType = 'image/jpeg'
 
         const prompt = `You are a medical OSPE examiner looking at a ${subjectName} lecture slide image.
