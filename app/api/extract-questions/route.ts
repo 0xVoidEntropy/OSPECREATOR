@@ -22,7 +22,7 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 async function handler(request: Request) {
-  const { lectureId, subjectId } = await request.json()
+  const { lectureId, subjectId, startIndex = 0, batchSize = 8 } = await request.json()
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const openRouterKey = process.env.OPENROUTER_API_KEY
   const geminiKey = process.env.GOOGLE_AI_API_KEY
@@ -68,8 +68,8 @@ If the slide is a title page, objectives, references, or has no clinical specime
 Otherwise reply ONLY with this exact JSON (no markdown):
 {"question":"Station — [Topic]\\n1. [Clinical question about what is shown]\\n2. [Morphology/features question]\\n3. [Diagnosis or mechanism question]","answer":"1. [Detailed answer]\\n2. [Detailed answer]\\n3. [Detailed answer]","hint":"[Mnemonic or key teaching point]","difficulty":"easy|medium|hard","tags":["tag1","tag2"]}`
 
-    // Process up to 12 slides to stay within Vercel's 10s function timeout
-    const slidesToProcess = imagePages.slice(0, 12)
+    // Process a batch of slides (caller loops with startIndex to process all)
+    const slidesToProcess = imagePages.slice(startIndex, startIndex + batchSize)
 
     for (const page of slidesToProcess) {
       try {
@@ -171,12 +171,19 @@ Otherwise reply ONLY with this exact JSON (no markdown):
     }
   }
 
-  if (!toInsert.length) return NextResponse.json({ error: 'No questions generated', slides: imagePages.length, aiAvailable: !!aiKey }, { status: 400 })
+  const nextIndex = startIndex + batchSize
+  const hasMore = nextIndex < imagePages.length
+
+  if (!toInsert.length) {
+    // No questions this batch but may have more slides
+    if (hasMore) return NextResponse.json({ success: true, count: 0, hasMore: true, nextIndex, usedAI: !!aiKey })
+    return NextResponse.json({ error: 'No questions generated', slides: imagePages.length, aiAvailable: !!aiKey }, { status: 400 })
+  }
 
   const { error: insertErr } = await admin.from('questions').insert(toInsert)
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
-  return NextResponse.json({ success: true, count: toInsert.length, usedAI: !!aiKey })
+  return NextResponse.json({ success: true, count: toInsert.length, hasMore, nextIndex, usedAI: !!aiKey })
 }
 
 function buildQuestion(title: string): string {

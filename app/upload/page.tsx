@@ -295,19 +295,29 @@ export default function UploadPage() {
                     setProcessingJob(null)
                     setProcessSuccess(true)
                     setTimeout(() => setProcessSuccess(false), 5000)
-                    // Auto-extract questions from slide text
+                    // Auto-extract questions (batched: 8 slides per call to stay within timeout)
                     if (job) {
                       setExtractingQuestions(true)
                       setExtractResult(null)
                       try {
-                        const res = await fetch('/api/extract-questions', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ lectureId: job.lectureId, subjectId: job.subjectId }),
-                        })
-                        const data = await res.json()
-                        if (data.success) setExtractResult(`✓ ${data.count} questions extracted from slides`)
-                        else setExtractResult(`⚠ Question extraction: ${data.error}`)
+                        let totalCount = 0
+                        let nextIndex = 0
+                        let hasMore = true
+                        while (hasMore) {
+                          const res = await fetch('/api/extract-questions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lectureId: job.lectureId, subjectId: job.subjectId, startIndex: nextIndex, batchSize: 8 }),
+                          })
+                          const data = await res.json()
+                          if (!res.ok) { setExtractResult(`⚠ Question extraction: ${data.error}`); break }
+                          totalCount += data.count || 0
+                          hasMore = data.hasMore || false
+                          nextIndex = data.nextIndex || 0
+                          if (hasMore) setExtractResult(`⏳ Generating questions… ${totalCount} done, processing more slides`)
+                        }
+                        if (totalCount > 0) setExtractResult(`✓ ${totalCount} questions extracted from slides`)
+                        else setExtractResult(`⚠ No questions generated — add OPENROUTER_API_KEY to Vercel for AI questions`)
                       } catch (e) {
                         setExtractResult(`⚠ Question extraction failed: ${String(e)}`)
                       }
