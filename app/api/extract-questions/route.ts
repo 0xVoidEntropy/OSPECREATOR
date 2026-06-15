@@ -87,9 +87,7 @@ Rules:
 
         if (useOpenRouter) {
           const FREE_VISION_MODELS = [
-            'nvidia/llama-3.2-nemotron-nano-12b-vl:free',
-            'qwen/qwen2.5-vl-7b-instruct:free',
-            'mistralai/pixtral-12b:free',
+            'nvidia/nemotron-nano-12b-v2-vl:free',
           ]
           for (const model of FREE_VISION_MODELS) {
             const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
