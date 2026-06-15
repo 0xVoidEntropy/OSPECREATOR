@@ -64,12 +64,20 @@ async function handler(request: Request) {
     const isGeminiOAuth = !useOpenRouter && (geminiKey?.startsWith('AQ.') || geminiKey?.startsWith('ya29.'))
 
     const prompt = (subjectName: string) =>
-      `You are a medical OSPE examiner. Look at this ${subjectName} lecture slide image and generate ONE OSPE exam station question.
+      `You are a medical OSPE examiner creating exam questions from ${subjectName} lecture slides.
 
-If the slide is a title page, objectives, references, or has no clinical specimen — reply ONLY: {"skip":true}
+Look at this slide image carefully.
 
-Otherwise reply ONLY with this exact JSON (no markdown):
-{"question":"Station — [Topic]\\n1. [Clinical question about what is shown]\\n2. [Morphology/features question]\\n3. [Diagnosis or mechanism question]","answer":"1. [Detailed answer]\\n2. [Detailed answer]\\n3. [Detailed answer]","hint":"[Mnemonic or key teaching point]","difficulty":"easy|medium|hard","tags":["tag1","tag2"]}`
+If it is a title slide, objectives slide, table of contents, references, a diagram with no clinical specimen, or has nothing examinable — output exactly: SKIP
+
+Otherwise output a JSON object (no markdown, no code block, just raw JSON):
+{"question":"Station — [specific topic name]\\n1. [first clinical question]\\n2. [second question about features/morphology]\\n3. [third question about diagnosis/mechanism]","answer":"1. [full answer to question 1]\\n2. [full answer to question 2]\\n3. [full answer to question 3]","hint":"[one teaching point or mnemonic]","difficulty":"easy","tags":["pathology","kidney"]}
+
+Rules:
+- Replace difficulty with easy, medium, or hard
+- Tags should be 2-5 relevant medical terms
+- Answers must be specific and detailed, not generic
+- Do not wrap in markdown or add any text before/after the JSON`
 
     // Process a batch of slides (caller loops with startIndex to process all)
     const slidesToProcess = imagePages.slice(startIndex, startIndex + batchSize)
@@ -95,7 +103,7 @@ Otherwise reply ONLY with this exact JSON (no markdown):
               'X-Title': 'OSPE Study Helper',
             },
             body: JSON.stringify({
-              model: 'meta-llama/llama-3.2-11b-vision-instruct:free',
+              model: 'qwen/qwen2.5-vl-72b-instruct:free',
               messages: [{
                 role: 'user',
                 content: [
@@ -126,13 +134,20 @@ Otherwise reply ONLY with this exact JSON (no markdown):
         }
 
         raw = raw.trim()
-        if (!raw || raw.includes('"skip":true')) continue
+        if (!raw) continue
+        // Handle both {"skip":true} and plain SKIP response
+        if (/^\s*SKIP\s*$/i.test(raw) || raw.includes('"skip":true') || raw.includes('"skip": true')) continue
 
-        const jsonMatch = raw.match(/\{[\s\S]*?\}(?=\s*$|\s*\n)/) || raw.match(/\{[\s\S]*\}/)
+        // Strip markdown code fences if model wrapped in ```json ... ```
+        raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+
+        // Extract first complete JSON object
+        const jsonMatch = raw.match(/\{[\s\S]*\}/)
         if (!jsonMatch) continue
 
-        const parsed = JSON.parse(jsonMatch[0])
-        if (!parsed.question || !parsed.answer) continue
+        let parsed: Record<string, unknown>
+        try { parsed = JSON.parse(jsonMatch[0]) } catch { continue }
+        if (!parsed.question || !parsed.answer || (parsed as Record<string, unknown>).skip) continue
 
         toInsert.push({
           subject_id: subjectId,
