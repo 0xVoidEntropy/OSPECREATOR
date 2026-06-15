@@ -15,6 +15,7 @@ export interface Question {
   answer: string | null
   hint: string | null
   image_url: string | null
+  image_crop: { x: number; y: number; w: number; h: number } | null
   difficulty: 'easy' | 'medium' | 'hard'
   tags: string[]
   created_at: string

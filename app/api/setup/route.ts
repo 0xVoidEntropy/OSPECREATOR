@@ -245,6 +245,10 @@ export async function GET(request: Request) {
     )
   `)
 
+  await sql('Add image_crop column if missing', `
+    alter table questions add column if not exists image_crop jsonb;
+  `)
+
   await sql('Enable RLS on all tables', `
     alter table subjects enable row level security;
     alter table questions enable row level security;

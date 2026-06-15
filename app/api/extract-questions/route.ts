@@ -75,7 +75,9 @@ OUTPUT "SKIP" (nothing else) if the slide is ANY of these:
 - Blank or near-blank slide
 
 OUTPUT raw JSON (no markdown) only if the slide contains an ACTUAL specimen image (histology, gross pathology, microscopy, biopsy photo):
-{"question":"Station — [topic]\\n1. [clinical question]\\n2. [morphology question]\\n3. [diagnosis question]","answer":"1. [answer]\\n2. [answer]\\n3. [answer]","hint":"[key teaching point]","difficulty":"easy","tags":["tag1","tag2"]}
+{"question":"Station — [topic]\\n1. [clinical question]\\n2. [morphology question]\\n3. [diagnosis question]","answer":"1. [answer]\\n2. [answer]\\n3. [answer]","hint":"[key teaching point]","difficulty":"easy","tags":["tag1","tag2"],"crop":{"x":0,"y":0,"w":100,"h":100}}
+
+The "crop" field must describe the bounding box of the SPECIMEN IMAGE ONLY (not the text/title area), as percentages of the slide (0-100). Example: if the specimen photo occupies the bottom-right 60% of the slide, use {"x":40,"y":30,"w":60,"h":70}.
 
 Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before or after the JSON.`
 
@@ -156,7 +158,8 @@ Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before o
         try { parsed = JSON.parse(jsonMatch[0]) } catch { continue }
         if (!parsed.question || !parsed.answer || parsed.skip) continue
 
-        const q = parsed as { question: string; answer: string; hint?: string; difficulty?: string; tags?: string[] }
+        const q = parsed as { question: string; answer: string; hint?: string; difficulty?: string; tags?: string[]; crop?: { x: number; y: number; w: number; h: number } }
+        const crop = q.crop && typeof q.crop.x === 'number' ? q.crop : null
         toInsert.push({
           subject_id: subjectId,
           station_number: 100 + toInsert.length,
@@ -166,6 +169,7 @@ Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before o
           difficulty: ['easy','medium','hard'].includes(q.difficulty ?? '') ? q.difficulty : 'medium',
           tags: Array.isArray(q.tags) ? q.tags.slice(0, 5) : [],
           image_url: page.image_url,
+          image_crop: crop,
         })
       } catch { /* skip slide */ }
 

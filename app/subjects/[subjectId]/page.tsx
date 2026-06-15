@@ -335,15 +335,34 @@ export default function SubjectPage() {
                   </div>
 
                   {/* AUTO-MATCHED slide image from uploaded lectures */}
-                  {matchedImage && (
+                  {matchedImage && (() => {
+                    const crop = q.image_crop as { x: number; y: number; w: number; h: number } | null | undefined
+                    return (
                     <div className="mb-4 relative group cursor-pointer" onClick={() => setZoomedImage(matchedImage)}>
                       <div className="relative w-full rounded-xl overflow-hidden border border-slate-700/50 bg-slate-800">
+                        {crop ? (
+                          <div style={{ paddingBottom: `${(crop.h / crop.w) * 100}%`, position: 'relative', overflow: 'hidden' }}>
+                            <img
+                              src={matchedImage}
+                              alt={`Slide for station ${q.station_number}`}
+                              loading="lazy"
+                              style={{
+                                position: 'absolute',
+                                width: `${100 / (crop.w / 100)}%`,
+                                height: `${100 / (crop.h / 100)}%`,
+                                left: `${-crop.x / crop.w * 100}%`,
+                                top: `${-crop.y / crop.h * 100}%`,
+                              }}
+                            />
+                          </div>
+                        ) : (
                         <img
                           src={matchedImage}
                           alt={`Slide for station ${q.station_number}`}
                           className="w-full object-contain max-h-80"
                           loading="lazy"
                         />
+                        )}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 rounded-xl px-3 py-1.5 flex items-center gap-2 text-white text-sm">
                             <ZoomIn className="w-4 h-4" /> Click to zoom
@@ -354,7 +373,7 @@ export default function SubjectPage() {
                         </div>
                       </div>
                     </div>
-                  )}
+                  )})()}
 
                   {/* Question text */}
                   <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-line mb-4">{q.question_text}</p>

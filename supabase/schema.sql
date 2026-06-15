@@ -22,6 +22,7 @@ create table if not exists questions (
   image_url text,
   difficulty text default 'medium' check (difficulty in ('easy','medium','hard')),
   tags text[] default '{}',
+  image_crop jsonb,
   created_at timestamptz default now()
 );
 
