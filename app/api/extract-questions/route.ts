@@ -96,7 +96,7 @@ Rules:
               'X-Title': 'OSPE Study Helper',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.0-flash-exp:free',
+              model: 'qwen/qwen2.5-vl-7b-instruct:free',
               messages: [{
                 role: 'user',
                 content: [
