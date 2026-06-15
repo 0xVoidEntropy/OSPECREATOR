@@ -86,34 +86,38 @@ Rules:
         let raw = ''
 
         if (useOpenRouter) {
-          // Use public URL directly — base64 encoding large slides can exceed OpenRouter's payload limit
-          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${openRouterKey}`,
-              'HTTP-Referer': 'https://ospecreator.vercel.app',
-              'X-Title': 'OSPE Study Helper',
-            },
-            body: JSON.stringify({
-              model: 'qwen/qwen2.5-vl-7b-instruct:free',
-              messages: [{
-                role: 'user',
-                content: [
+          const FREE_VISION_MODELS = [
+            'qwen/qwen2.5-vl-7b-instruct:free',
+            'mistralai/pixtral-12b:free',
+            'microsoft/phi-3.5-vision-instruct:free',
+          ]
+          for (const model of FREE_VISION_MODELS) {
+            const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${openRouterKey}`,
+                'HTTP-Referer': 'https://ospecreator.vercel.app',
+                'X-Title': 'OSPE Study Helper',
+              },
+              body: JSON.stringify({
+                model,
+                messages: [{ role: 'user', content: [
                   { type: 'text', text: prompt(subjectName) },
                   { type: 'image_url', image_url: { url: page.image_url } },
-                ]
-              }],
-              max_tokens: 600,
+                ]}],
+                max_tokens: 600,
+              })
             })
-          })
-          if (!res.ok) {
-            const errBody = await res.text().catch(() => '')
-            aiErrors.push(`p${page.page_number}:${res.status}:${errBody.slice(0, 150)}`)
-            continue
+            if (!res.ok) {
+              const errBody = await res.text().catch(() => '')
+              aiErrors.push(`p${page.page_number}:${model}:${res.status}:${errBody.slice(0, 100)}`)
+              continue
+            }
+            const json = await res.json().catch(() => null)
+            raw = json?.choices?.[0]?.message?.content || ''
+            if (raw) break  // success — stop trying models
           }
-          const json = await res.json().catch(() => null)
-          raw = json?.choices?.[0]?.message?.content || ''
         } else {
           // Gemini: fetch image as base64
           const imgRes = await fetch(page.image_url)
