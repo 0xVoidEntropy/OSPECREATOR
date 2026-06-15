@@ -96,7 +96,7 @@ Rules:
               'X-Title': 'OSPE Study Helper',
             },
             body: JSON.stringify({
-              model: 'meta-llama/llama-3.2-11b-vision-instruct:free',
+              model: 'google/gemini-2.0-flash-exp:free',
               messages: [{
                 role: 'user',
                 content: [
