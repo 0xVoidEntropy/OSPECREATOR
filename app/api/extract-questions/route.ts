@@ -56,17 +56,15 @@ async function handler(request: Request) {
   const toInsert: Array<Record<string, unknown>> = []
 
   if (geminiKey) {
-    const genAI = new GoogleGenerativeAI(geminiKey)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    // Support both AIzaSy (API key) and AQ. (OAuth token) formats
+    const isOAuthToken = geminiKey.startsWith('AQ.') || geminiKey.startsWith('ya29.')
 
     for (const page of imagePages) {
       try {
-        // Fetch the slide image and send it to Gemini Vision
         const imgRes = await fetch(page.image_url)
         if (!imgRes.ok) continue
         const imgBuffer = await imgRes.arrayBuffer()
         const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)))
-        const mimeType = 'image/jpeg'
 
         const prompt = `You are a medical OSPE examiner looking at a ${subjectName} lecture slide image.
 
@@ -75,21 +73,43 @@ Analyse what you see in this slide and generate ONE OSPE exam station question.
 If this slide is just a title, intro, objectives, references, or has no clinical specimen/pathology image — reply ONLY with: {"skip":true}
 
 Otherwise reply ONLY with this JSON (no markdown, no code blocks):
-{
-  "question": "Station X — [Topic]\\n1. [Question about what is shown]\\n2. [Morphological feature question]\\n3. [Diagnosis or mechanism question]\\n4. [Clinical significance or comparison]",
-  "answer": "1. [Answer]\\n2. [Answer]\\n3. [Answer]\\n4. [Answer]",
-  "hint": "[Short mnemonic or key teaching point]",
-  "difficulty": "easy|medium|hard",
-  "tags": ["tag1", "tag2"]
-}`
+{"question":"Station X — [Topic]\\n1. [Question]\\n2. [Question]\\n3. [Question]","answer":"1. [Answer]\\n2. [Answer]\\n3. [Answer]","hint":"[Key teaching point or mnemonic]","difficulty":"easy|medium|hard","tags":["tag1","tag2"]}`
 
-        const result = await model.generateContent([
-          prompt,
-          { inlineData: { data: base64, mimeType } }
-        ])
+        let raw = ''
 
-        const raw = result.response.text().trim()
-        if (raw.includes('"skip":true')) continue
+        if (isOAuthToken) {
+          // Use REST API directly with Bearer token
+          const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${geminiKey}`,
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: prompt },
+                  { inline_data: { mime_type: 'image/jpeg', data: base64 } }
+                ]
+              }]
+            })
+          })
+          const json = await res.json()
+          raw = json?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+        } else {
+          // Use SDK with API key
+          const { GoogleGenerativeAI } = await import('@google/generative-ai')
+          const genAI = new GoogleGenerativeAI(geminiKey)
+          const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+          const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: base64, mimeType: 'image/jpeg' } }
+          ])
+          raw = result.response.text()
+        }
+
+        raw = raw.trim()
+        if (!raw || raw.includes('"skip":true')) continue
 
         const jsonMatch = raw.match(/\{[\s\S]*\}/)
         if (!jsonMatch) continue
@@ -109,7 +129,6 @@ Otherwise reply ONLY with this JSON (no markdown, no code blocks):
         })
       } catch { /* skip this slide */ }
 
-      // Respect 15 RPM free tier limit
       await new Promise(r => setTimeout(r, 300))
     }
   }
