@@ -84,7 +84,7 @@ Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before o
 
         if (useOpenRouter) {
           const FREE_VISION_MODELS = [
-            'nvidia/nemotron-nano-12b-v2-vl:free',
+            'google/gemini-2.0-flash',
           ]
           for (const model of FREE_VISION_MODELS) {
             const ctrl = new AbortController()
