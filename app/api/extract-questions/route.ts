@@ -56,6 +56,7 @@ async function handler(request: Request) {
   if (!imagePages.length) return NextResponse.json({ error: 'No content slides found — try re-uploading the PDF' }, { status: 400 })
 
   const toInsert: Array<Record<string, unknown>> = []
+  const slidesToProcess = imagePages.slice(startIndex, startIndex + batchSize)
 
   const aiKey = openRouterKey || geminiKey
 
@@ -78,9 +79,6 @@ Rules:
 - Tags should be 2-5 relevant medical terms
 - Answers must be specific and detailed, not generic
 - Do not wrap in markdown or add any text before/after the JSON`
-
-    // Process a batch of slides (caller loops with startIndex to process all)
-    const slidesToProcess = imagePages.slice(startIndex, startIndex + batchSize)
 
     for (const page of slidesToProcess) {
       try {
@@ -201,14 +199,15 @@ Rules:
 
   if (!toInsert.length) {
     // No questions this batch but may have more slides
-    if (hasMore) return NextResponse.json({ success: true, count: 0, hasMore: true, nextIndex, usedAI: !!aiKey })
-    return NextResponse.json({ error: 'No questions generated', slides: imagePages.length, aiAvailable: !!aiKey }, { status: 400 })
+    const dbg = { openRouter: !!openRouterKey, gemini: !!geminiKey, slides: imagePages.length, processed: slidesToProcess?.length ?? 0 }
+    if (hasMore) return NextResponse.json({ success: true, count: 0, hasMore: true, nextIndex, usedAI: !!aiKey, debug: dbg })
+    return NextResponse.json({ error: 'No questions generated', debug: dbg }, { status: 400 })
   }
 
   const { error: insertErr } = await admin.from('questions').insert(toInsert)
   if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 })
 
-  return NextResponse.json({ success: true, count: toInsert.length, hasMore, nextIndex, usedAI: !!aiKey })
+  return NextResponse.json({ success: true, count: toInsert.length, hasMore, nextIndex, usedAI: !!aiKey, debug: { openRouter: !!openRouterKey, gemini: !!geminiKey } })
 }
 
 function buildQuestion(title: string): string {
