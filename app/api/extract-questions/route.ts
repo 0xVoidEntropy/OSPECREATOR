@@ -68,12 +68,16 @@ If the slide is a title page, objectives, references, or has no clinical specime
 Otherwise reply ONLY with this exact JSON (no markdown):
 {"question":"Station — [Topic]\\n1. [Clinical question about what is shown]\\n2. [Morphology/features question]\\n3. [Diagnosis or mechanism question]","answer":"1. [Detailed answer]\\n2. [Detailed answer]\\n3. [Detailed answer]","hint":"[Mnemonic or key teaching point]","difficulty":"easy|medium|hard","tags":["tag1","tag2"]}`
 
-    for (const page of imagePages) {
+    // Process up to 12 slides to stay within Vercel's 10s function timeout
+    const slidesToProcess = imagePages.slice(0, 12)
+
+    for (const page of slidesToProcess) {
       try {
         const imgRes = await fetch(page.image_url)
         if (!imgRes.ok) continue
         const imgBuffer = await imgRes.arrayBuffer()
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)))
+        // Buffer.from avoids stack overflow that btoa+spread causes on large images
+        const base64 = Buffer.from(imgBuffer).toString('base64')
         const dataUrl = `data:image/jpeg;base64,${base64}`
 
         let raw = ''
@@ -99,7 +103,8 @@ Otherwise reply ONLY with this exact JSON (no markdown):
               max_tokens: 600,
             })
           })
-          const json = await res.json()
+          if (!res.ok) continue
+          const json = await res.json().catch(() => null)
           raw = json?.choices?.[0]?.message?.content || ''
         } else if (isGeminiOAuth) {
           const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
@@ -107,7 +112,8 @@ Otherwise reply ONLY with this exact JSON (no markdown):
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${geminiKey}` },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt(subjectName) }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }] })
           })
-          const json = await res.json()
+          if (!res.ok) continue
+          const json = await res.json().catch(() => null)
           raw = json?.candidates?.[0]?.content?.parts?.[0]?.text || ''
         } else {
           const { GoogleGenerativeAI } = await import('@google/generative-ai')
@@ -137,7 +143,7 @@ Otherwise reply ONLY with this exact JSON (no markdown):
         })
       } catch { /* skip slide */ }
 
-      await new Promise(r => setTimeout(r, 400))
+      await new Promise(r => setTimeout(r, 200))
     }
   }
 
