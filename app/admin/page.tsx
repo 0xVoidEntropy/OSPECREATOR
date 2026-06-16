@@ -101,7 +101,7 @@ export default function AdminPage() {
     try {
       const subjectId = await getOrCreateSubject(next.subject, year, block)
       const { data: lec, error: lecErr } = await supabase.from('lectures').insert({
-        subject_id: subjectId, title: next.file.name.replace(/\.pdf$/i, ''), file_url: publicUrl, user_id: userId,
+        subject_id: subjectId, title: next.file.name.replace(/\.pdf$/i, ''), file_url: publicUrl, uploaded_by: userId,
       }).select().single()
       if (lecErr || !lec) { addLog(`✗ Record error: ${lecErr?.message}`); processNext(rest); return }
       addLog(`Extracting slides from "${next.file.name}"…`)
