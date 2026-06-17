@@ -1,6 +1,5 @@
 import os
 import re
-import io
 import fitz  # PyMuPDF
 import pytesseract
 import genanki
@@ -10,7 +9,7 @@ from PIL import Image
 PDF_FILE = "Sauce.pdf"
 OUTPUT_DIR = "pdf_images"
 ANKI_FILE = "pdf_cards.apkg"
-ZOOM = 2.0  # render resolution multiplier, used only for OCR-ing captions
+ZOOM = 3.0  # render resolution multiplier — used for both the saved crop and OCR
 
 # Embedded images smaller than this (in PDF points, 72pt = 1 inch) are
 # skipped — these are almost always bullet icons, logos, or decorative
@@ -92,7 +91,6 @@ model = genanki.Model(
 
 media_files = []
 used_names = set()
-seen_xrefs_this_page = set()
 total_specimens = 0
 pages_with_none = 0
 
@@ -120,11 +118,18 @@ for page_index in range(len(doc)):
     page_title = None
 
     for xref, bbox in real_images:
-        base = doc.extract_image(xref)
-        img_bytes = base["image"]
-        ext = base["ext"]
-
         scaled_box = tuple(c * ZOOM for c in bbox)
+
+        # Crop from the RENDERED page (not the raw embedded image) so any
+        # arrows, circles, or labels drawn on top of the picture in the
+        # slide are preserved in the saved crop.
+        x1, y1, x2, y2 = [int(v) for v in scaled_box]
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(page_img.width, x2), min(page_img.height, y2)
+        if x2 <= x1 or y2 <= y1:
+            continue
+        cropped = page_img.crop((x1, y1, x2, y2))
+
         caption = clean_caption(ocr_caption_near(page_img, scaled_box))
         if not caption:
             if page_title is None:
@@ -139,9 +144,8 @@ for page_index in range(len(doc)):
             n += 1
         used_names.add(name)
 
-        img_path = os.path.join(OUTPUT_DIR, f"{name}.{ext}")
-        with open(img_path, "wb") as f:
-            f.write(img_bytes)
+        img_path = os.path.join(OUTPUT_DIR, f"{name}.png")
+        cropped.save(img_path, "PNG")
         media_files.append(img_path)
         total_specimens += 1
 
