@@ -17,6 +17,8 @@ DPI = 200
 MIN_SPECIMEN_AREA_RATIO = 0.03   # ignore contours smaller than 3% of page area
 MAX_SPECIMEN_AREA_RATIO = 0.85   # ignore near-full-page contours (likely background)
 OVERLAP_MERGE_THRESHOLD = 0.4    # merge boxes that overlap more than this (IoU-ish)
+MIN_SATURATION = 18              # below this, region is basically grayscale text/bg
+MAX_TEXT_ROW_PERIODICITY = 0.55  # reject boxes whose edge rows look like text lines
 # Filenames are still capped for filesystem safety; the full OCR text always
 # goes into the card's Answer field regardless of this limit.
 MAX_FILENAME_LEN = 150
@@ -59,6 +61,31 @@ def merge_overlapping_boxes(boxes):
     return merged
 
 
+def looks_like_text_block(gray_roi: np.ndarray, edges_roi: np.ndarray) -> bool:
+    """Text paragraphs/bullets produce a horizontal-edge profile with sharp,
+    evenly-spaced peaks (one per line of text). Real photos have a much
+    smoother, less periodic row profile. Used to reject text boxes that
+    otherwise pass the size/density filters."""
+    row_profile = edges_roi.sum(axis=1).astype(np.float32)
+    if row_profile.max() <= 0:
+        return False
+    row_profile /= row_profile.max()
+    active_rows = (row_profile > 0.15).sum()
+    return (active_rows / len(row_profile)) < MAX_TEXT_ROW_PERIODICITY and row_profile.std() > 0.3
+
+
+def is_low_saturation(cv_img: np.ndarray, box) -> bool:
+    """True if the region is essentially grayscale/black-on-light-background
+    (i.e. text), as opposed to a stained histology/gross specimen photo
+    which has real color (pink, purple, red, tan, etc.)."""
+    x1, y1, x2, y2 = box
+    roi = cv_img[y1:y2, x1:x2]
+    if roi.size == 0:
+        return True
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    return float(np.mean(hsv[:, :, 1])) < MIN_SATURATION
+
+
 def find_specimen_boxes(cv_img: np.ndarray):
     """Heuristic: specimen photos/diagrams are dense, roughly box-shaped
     regions distinct from thin text lines. Returns ALL qualifying regions
@@ -86,6 +113,10 @@ def find_specimen_boxes(cv_img: np.ndarray):
         density = cv2.countNonZero(roi_edges) / area
         if density < 0.04:
             continue  # too sparse to be a real image (likely empty space)
+        if looks_like_text_block(gray[y:y + ch, x:x + cw], roi_edges):
+            continue  # rows of bullet/paragraph text, not a specimen photo
+        if is_low_saturation(cv_img, (x, y, x + cw, y + ch)):
+            continue  # grayscale/black-on-light box — text, not a stained specimen
         pad = int(0.015 * w)
         candidates.append((
             max(0, x - pad),
