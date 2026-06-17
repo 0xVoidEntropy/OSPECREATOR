@@ -73,13 +73,15 @@ def ocr_caption_near(cv_img: np.ndarray, box) -> str:
     strip_h = int(0.12 * h)
 
     below = cv_img[y2:min(h, y2 + strip_h), x1:x2]
-    text = pytesseract.image_to_string(below).strip()
-    if text:
-        return text
+    if below.size > 0 and below.shape[0] > 0 and below.shape[1] > 0:
+        text = pytesseract.image_to_string(below).strip()
+        if text:
+            return text
 
     above = cv_img[max(0, y1 - strip_h):y1, x1:x2]
-    text = pytesseract.image_to_string(above).strip()
-    return text
+    if above.size > 0 and above.shape[0] > 0 and above.shape[1] > 0:
+        return pytesseract.image_to_string(above).strip()
+    return ""
 
 
 def ocr_full_page_title(cv_img: np.ndarray) -> str:
