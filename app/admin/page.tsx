@@ -30,7 +30,7 @@ function detectSubject(relativePath: string): string {
   const parts = relativePath.split('/')
   // subject is the folder directly containing the file (second-to-last part)
   const folder = parts.length >= 2 ? parts[parts.length - 2] : ''
-  return folder || 'General'
+  return folder.trim() || 'General'
 }
 
 export default function AdminPage() {
@@ -98,14 +98,25 @@ export default function AdminPage() {
   }
 
   const getOrCreateSubject = async (name: string, yr: number, blk: string): Promise<string> => {
-    const { data: existing } = await supabase.from('subjects').select('id').eq('name', name).eq('year', yr).eq('block', blk).maybeSingle()
-    if (existing) return existing.id
-    const key = name.toLowerCase()
+    const cleanName = name.trim()
+    const cleanBlock = blk.trim()
+    // Case/whitespace-insensitive match so re-uploading the same subject under a
+    // slightly different folder name casing doesn't spawn a duplicate row.
+    const { data: existing } = await supabase
+      .from('subjects')
+      .select('id')
+      .ilike('name', cleanName)
+      .eq('year', yr)
+      .ilike('block', cleanBlock)
+      .order('created_at', { ascending: true })
+      .limit(1)
+    if (existing && existing.length) return existing[0].id
+    const key = cleanName.toLowerCase()
     const { data: created, error } = await supabase.from('subjects').insert({
-      name, year: yr, block: blk, display_order: 0,
+      name: cleanName, year: yr, block: cleanBlock, display_order: 0,
       icon: SUBJECT_ICONS[key] || '📚',
       color: SUBJECT_COLORS[key] || '#0891b2',
-      description: `${name} — Year ${yr}, ${blk} block`,
+      description: `${cleanName} — Year ${yr}, ${cleanBlock} block`,
     }).select('id').single()
     if (error) throw new Error(`Subject creation failed: ${error.message}`)
     return created.id
