@@ -115,10 +115,10 @@ function CropEditor({ imageUrl, crop, onChange }: { imageUrl: string; crop: Crop
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-3 items-start">
       <div
         ref={boxRef}
-        className="relative w-full select-none cursor-crosshair border border-slate-700 rounded-lg overflow-hidden touch-none"
+        className="relative w-full select-none cursor-crosshair border border-slate-700 rounded-lg overflow-hidden touch-none self-start"
         onPointerDown={handleDown}
         onPointerMove={handleMove}
         onPointerUp={handleUp}
