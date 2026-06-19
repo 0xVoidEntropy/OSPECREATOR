@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Subject } from '@/types'
 import { ADMIN_EMAIL } from '@/lib/admin'
-import { BookOpen, LogOut, Clock, Trophy, Target, Upload, ChevronRight, Microscope, TrendingUp } from 'lucide-react'
+import { BookOpen, LogOut, Clock, Trophy, Target, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, Layers, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 interface SubjectStats extends Subject {
@@ -13,11 +13,43 @@ interface SubjectStats extends Subject {
   answered: number
 }
 
+function SubjectCard({ subject, getSubjectBg, getProgressColor }: {
+  subject: SubjectStats
+  getSubjectBg: (color: string) => string
+  getProgressColor: (color: string) => string
+}) {
+  const percent = subject.total > 0 ? Math.round((subject.answered / subject.total) * 100) : 0
+  return (
+    <Link
+      href={`/subjects/${subject.id}`}
+      className={`group bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-2xl p-5 transition-all hover:scale-[1.02]`}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <BookOpen className="w-6 h-6 text-white/80" />
+        <span className="text-xs font-medium text-slate-300 bg-slate-900/40 px-2 py-0.5 rounded-full">
+          {subject.answered}/{subject.total}
+        </span>
+      </div>
+      <h4 className="font-bold text-white">{subject.name}</h4>
+      {subject.description && <p className="text-slate-400 text-xs mt-1 line-clamp-2">{subject.description}</p>}
+      <div className="h-1.5 bg-slate-900/40 rounded-full overflow-hidden mt-3">
+        <div className={`h-full ${getProgressColor(subject.color)} rounded-full transition-all duration-700`} style={{ width: `${percent}%` }} />
+      </div>
+      <div className="flex items-center justify-between mt-2">
+        <span className="text-slate-500 text-xs">{subject.total} question(s)</span>
+        <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform" />
+      </div>
+    </Link>
+  )
+}
+
 export default function Dashboard() {
   const [subjects, setSubjects] = useState<SubjectStats[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<{ email: string; name: string } | null>(null)
   const [totalStats, setTotalStats] = useState({ total: 0, answered: 0 })
+  const [folderYear, setFolderYear] = useState<number | 'other' | null>(null)
+  const [folderBlock, setFolderBlock] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -91,6 +123,8 @@ export default function Dashboard() {
     }
     return map[color] || 'bg-slate-500'
   }
+
+  const yearLabel = (y: number) => y === 1 ? '1st Year' : y === 2 ? '2nd Year' : y === 3 ? '3rd Year' : `${y}th Year`
 
   if (loading) {
     return (
@@ -175,7 +209,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <Link
             href="/simulation"
             className="group bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 hover:border-cyan-400/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-cyan-500/10"
@@ -187,6 +221,22 @@ export default function Dashboard() {
               <div>
                 <h3 className="font-bold text-white">5-min Station Simulation</h3>
                 <p className="text-slate-400 text-sm">Timed OSPE exam experience</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-slate-500 ml-auto group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          <Link
+            href="/flashcards"
+            className="group bg-gradient-to-r from-emerald-500/20 to-teal-600/20 border border-emerald-500/30 hover:border-emerald-400/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/10"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Layers className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white">Flashcards</h3>
+                <p className="text-slate-400 text-sm">Quick flip-through revision</p>
               </div>
               <ChevronRight className="w-5 h-5 text-slate-500 ml-auto group-hover:translate-x-1 transition-transform" />
             </div>
@@ -211,85 +261,102 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Subjects grouped by Year and Block */}
-        <div className="space-y-8">
-          <h3 className="text-lg font-bold text-white">Study by Subject</h3>
+        {/* Subjects browsed as folders: Year > Block > Subject */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-white">Study by Subject</h3>
+            {(folderYear !== null) && (
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                <button onClick={() => { setFolderYear(null); setFolderBlock(null) }} className="hover:text-cyan-400 transition-colors flex items-center gap-1">
+                  <ArrowLeft className="w-3 h-3" /> All Years
+                </button>
+                {folderBlock !== null && (
+                  <>
+                    <span className="text-slate-600">/</span>
+                    <button onClick={() => setFolderBlock(null)} className="hover:text-cyan-400 transition-colors">
+                      {folderYear === 'other' ? 'Other' : yearLabel(folderYear)}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
           {(() => {
             const withYear = subjects.filter(s => s.total > 0 && s.year != null)
             const noYear = subjects.filter(s => s.total > 0 && s.year == null)
-
             const years = [...new Set(withYear.map(s => s.year as number))].sort()
 
-            const SubjectCard = ({ subject }: { subject: SubjectStats }) => {
-              const pct = subject.total > 0 ? Math.round((subject.answered / subject.total) * 100) : 0
+            // Level 1: year folders
+            if (folderYear === null) {
               return (
-                <Link
-                  href={`/subjects/${subject.id}`}
-                  className={`group bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-2xl p-5 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg`}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <span className="text-2xl">{subject.icon}</span>
-                    <span className="text-xs text-slate-400 bg-slate-800/50 px-2 py-1 rounded-lg">
-                      {subject.answered}/{subject.total}
-                    </span>
-                  </div>
-                  <h4 className="font-bold text-white mb-1">{subject.name}</h4>
-                  <p className="text-slate-400 text-xs mb-4 line-clamp-2">{subject.description}</p>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400">Progress</span>
-                      <span className="text-slate-300 font-medium">{pct}%</span>
-                    </div>
-                    <div className="h-1.5 bg-slate-800/50 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${getProgressColor(subject.color)} rounded-full transition-all duration-700`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between mt-4">
-                    <span className="text-xs text-slate-500">{subject.total} questions</span>
-                    <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </Link>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {years.map(yr => {
+                    const yearSubjects = withYear.filter(s => s.year === yr)
+                    const total = yearSubjects.reduce((a, s) => a + s.total, 0)
+                    const answered = yearSubjects.reduce((a, s) => a + s.answered, 0)
+                    return (
+                      <button key={yr} onClick={() => setFolderYear(yr)}
+                        className="group bg-slate-900/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02]">
+                        <Folder className="w-7 h-7 text-cyan-400 mb-3 group-hover:hidden" />
+                        <FolderOpen className="w-7 h-7 text-cyan-400 mb-3 hidden group-hover:block" />
+                        <h4 className="font-bold text-white">{yearLabel(yr)}</h4>
+                        <p className="text-slate-500 text-xs mt-1">{yearSubjects.length} subject(s) · {answered}/{total} done</p>
+                      </button>
+                    )
+                  })}
+                  {noYear.length > 0 && (
+                    <button onClick={() => setFolderYear('other')}
+                      className="group bg-slate-900/60 border border-slate-700/40 hover:border-slate-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02]">
+                      <Folder className="w-7 h-7 text-slate-400 mb-3 group-hover:hidden" />
+                      <FolderOpen className="w-7 h-7 text-slate-400 mb-3 hidden group-hover:block" />
+                      <h4 className="font-bold text-white">Other Subjects</h4>
+                      <p className="text-slate-500 text-xs mt-1">{noYear.length} subject(s)</p>
+                    </button>
+                  )}
+                </div>
               )
             }
 
-            const yearLabel = (y: number) => y === 1 ? '1st Year' : y === 2 ? '2nd Year' : '3rd Year'
+            // "Other" folder — no blocks, straight to subjects
+            if (folderYear === 'other') {
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {noYear.map(s => <SubjectCard key={s.id} subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} />)}
+                </div>
+              )
+            }
 
+            const yearSubjects = withYear.filter(s => s.year === folderYear)
+            const blocks = [...new Set(yearSubjects.map(s => s.block ?? 'General'))].sort()
+
+            // Level 2: block folders
+            if (folderBlock === null) {
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {blocks.map(blk => {
+                    const blockSubjects = yearSubjects.filter(s => (s.block ?? 'General') === blk)
+                    const total = blockSubjects.reduce((a, s) => a + s.total, 0)
+                    const answered = blockSubjects.reduce((a, s) => a + s.answered, 0)
+                    return (
+                      <button key={blk} onClick={() => setFolderBlock(blk)}
+                        className="group bg-slate-900/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02]">
+                        <Folder className="w-7 h-7 text-violet-400 mb-3 group-hover:hidden" />
+                        <FolderOpen className="w-7 h-7 text-violet-400 mb-3 hidden group-hover:block" />
+                        <h4 className="font-bold text-white">{blk}</h4>
+                        <p className="text-slate-500 text-xs mt-1">{blockSubjects.length} subject(s) · {answered}/{total} done</p>
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            }
+
+            // Level 3: subjects in this block
+            const blockSubjects = yearSubjects.filter(s => (s.block ?? 'General') === folderBlock)
             return (
-              <>
-                {years.map(yr => {
-                  const yearSubjects = withYear.filter(s => s.year === yr)
-                  const blocks = [...new Set(yearSubjects.map(s => s.block ?? ''))].sort()
-                  return (
-                    <div key={yr}>
-                      <h4 className="text-base font-bold text-cyan-400 mb-4">{yearLabel(yr)}</h4>
-                      <div className="space-y-6">
-                        {blocks.map(blk => {
-                          const blockSubjects = yearSubjects.filter(s => (s.block ?? '') === blk)
-                          return (
-                            <div key={blk}>
-                              <p className="text-sm font-semibold text-slate-300 mb-3 pl-1 border-l-2 border-slate-600 pl-3">{blk}</p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {blockSubjects.map(s => <SubjectCard key={s.id} subject={s} />)}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-                {noYear.length > 0 && (
-                  <div>
-                    <h4 className="text-base font-bold text-slate-400 mb-4">Other Subjects</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {noYear.map(s => <SubjectCard key={s.id} subject={s} />)}
-                    </div>
-                  </div>
-                )}
-              </>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {blockSubjects.map(s => <SubjectCard key={s.id} subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} />)}
+              </div>
             )
           })()}
         </div>

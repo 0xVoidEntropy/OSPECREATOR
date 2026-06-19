@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { Question, Subject } from '@/types'
 import {
   ArrowLeft, Clock, ChevronRight, ChevronLeft, Lightbulb, Eye, EyeOff,
-  CheckCircle, Play, RotateCcw, Trophy, Loader2, X
+  Play, RotateCcw, Trophy, Loader2, X, Shuffle, ListChecks, Folder, FolderOpen, CheckCheck, XCircle
 } from 'lucide-react'
 import { LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
@@ -14,6 +14,21 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 
 const STATION_DURATION = 5 * 60 // 5 minutes in seconds
+const MAX_STATIONS = 25
+
+const yearLabel = (y: number) => y === 1 ? '1st Year' : y === 2 ? '2nd Year' : y === 3 ? '3rd Year' : `${y}th Year`
+
+function shuffle<T>(arr: T[]): T[] {
+  return [...arr].sort(() => Math.random() - 0.5)
+}
+
+function ratioColor(ratio: number) {
+  if (ratio >= 1) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+  if (ratio >= 0.75) return 'bg-lime-500/20 text-lime-300 border-lime-500/40'
+  if (ratio >= 0.5) return 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+  if (ratio >= 0.25) return 'bg-orange-500/20 text-orange-300 border-orange-500/40'
+  return 'bg-red-500/20 text-red-300 border-red-500/40'
+}
 
 function SimulationContent() {
   const router = useRouter()
@@ -21,9 +36,10 @@ function SimulationContent() {
   const subjectFilter = searchParams.get('subject')
 
   const supabase = createClient()
-  const [questions, setQuestions] = useState<Question[]>([])
+  const [allQuestions, setAllQuestions] = useState<Question[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [lecturePages, setLecturePages] = useState<LecturePage[]>([])
+  const [stations, setStations] = useState<Question[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [timeLeft, setTimeLeft] = useState(STATION_DURATION)
   const [running, setRunning] = useState(false)
@@ -31,11 +47,19 @@ function SimulationContent() {
   const [finished, setFinished] = useState(false)
   const [showAnswer, setShowAnswer] = useState(false)
   const [showHint, setShowHint] = useState(false)
-  const [results, setResults] = useState<Map<string, boolean | null>>(new Map())
+  const [subAnswers, setSubAnswers] = useState<(boolean | null)[]>([])
+  const [stationScores, setStationScores] = useState<number[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(subjectFilter)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // mode + selection state
+  const [mode, setMode] = useState<'random' | 'custom' | null>(null)
+  const [folderYear, setFolderYear] = useState<number | null>(null)
+  const [folderBlock, setFolderBlock] = useState<string | null>(null)
+  const [customSelected, setCustomSelected] = useState<Set<string>>(
+    new Set(subjectFilter ? [subjectFilter] : [])
+  )
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -44,14 +68,11 @@ function SimulationContent() {
 
     const [{ data: qData }, { data: sData }, { data: pData }] = await Promise.all([
       supabase.from('questions').select('*, subjects(*)').order('created_at'),
-      supabase.from('subjects').select('*').order('name'),
+      supabase.from('subjects').select('*').order('year').order('block').order('display_order'),
       supabase.from('lecture_pages').select('*'),
     ])
 
-    if (qData) {
-      const shuffled = [...qData].sort(() => Math.random() - 0.5)
-      setQuestions(shuffled)
-    }
+    if (qData) setAllQuestions(qData)
     if (sData) setSubjects(sData)
     if (pData) setLecturePages(pData)
     setLoading(false)
@@ -75,66 +96,36 @@ function SimulationContent() {
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [running, currentIdx])
 
-  const handleNextStation = () => {
-    if (timerRef.current) clearInterval(timerRef.current)
+  const currentQ = stations[currentIdx]
+  const subCount = currentQ?.sub_questions?.length || 1
+
+  // reset per-station grading state whenever the station changes
+  useEffect(() => {
+    setSubAnswers(new Array(subCount).fill(null))
     setShowAnswer(false)
     setShowHint(false)
-    setTimeLeft(STATION_DURATION)
+  }, [currentIdx, stations])
 
-    const filtered = getFilteredQuestions()
-    if (currentIdx >= filtered.length - 1) {
-      setRunning(false)
-      setFinished(true)
-    } else {
-      setCurrentIdx(prev => prev + 1)
-    }
-  }
+  const currentRatio = subAnswers.length
+    ? subAnswers.filter(a => a === true).length / subAnswers.length
+    : 0
 
-  const handlePrevStation = () => {
-    if (currentIdx > 0) {
-      setCurrentIdx(prev => prev - 1)
-      setShowAnswer(false)
-      setShowHint(false)
-      setTimeLeft(STATION_DURATION)
-    }
-  }
+  const recordStationScore = async () => {
+    const ratio = subAnswers.length ? subAnswers.filter(a => a === true).length / subAnswers.length : 0
+    setStationScores(prev => [...prev, ratio])
 
-  const getFilteredQuestions = () => {
-    if (!selectedSubject) return questions
-    return questions.filter(q => q.subject_id === selectedSubject)
-  }
-
-  const startSimulation = () => {
-    const filtered = getFilteredQuestions()
-    if (filtered.length === 0) return
-    setCurrentIdx(0)
-    setTimeLeft(STATION_DURATION)
-    setShowAnswer(false)
-    setShowHint(false)
-    setStarted(true)
-    setFinished(false)
-    setResults(new Map())
-    setRunning(true)
-  }
-
-  const markResult = async (correct: boolean | null) => {
-    const filtered = getFilteredQuestions()
-    const q = filtered[currentIdx]
-    if (!q || !userId) return
-
-    setResults(prev => new Map(prev).set(q.id, correct))
-
-    if (correct !== null) {
+    if (currentQ && userId) {
+      const correct = ratio === 1
       const { data: existing } = await supabase
         .from('user_progress')
         .select('id, attempts')
         .eq('user_id', userId)
-        .eq('question_id', q.id)
+        .eq('question_id', currentQ.id)
         .single()
 
       const data = {
         user_id: userId,
-        question_id: q.id,
+        question_id: currentQ.id,
         answered: true,
         correct,
         attempts: (existing?.attempts || 0) + 1,
@@ -149,6 +140,51 @@ function SimulationContent() {
     }
   }
 
+  const handleNextStation = async () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    setTimeLeft(STATION_DURATION)
+    await recordStationScore()
+
+    if (currentIdx >= stations.length - 1) {
+      setRunning(false)
+      setFinished(true)
+    } else {
+      setCurrentIdx(prev => prev + 1)
+    }
+  }
+
+  const handlePrevStation = () => {
+    if (currentIdx > 0) {
+      setCurrentIdx(prev => prev - 1)
+      setTimeLeft(STATION_DURATION)
+    }
+  }
+
+  const buildStations = (subjectIds: string[]) => {
+    const pool = allQuestions.filter(q => subjectIds.includes(q.subject_id))
+    return shuffle(pool).slice(0, MAX_STATIONS)
+  }
+
+  const startSimulation = () => {
+    let subjectIds: string[] = []
+    if (mode === 'random' && folderYear !== null && folderBlock !== null) {
+      subjectIds = subjects
+        .filter(s => s.year === folderYear && (s.block ?? 'General') === folderBlock)
+        .map(s => s.id)
+    } else if (mode === 'custom') {
+      subjectIds = [...customSelected]
+    }
+    const built = buildStations(subjectIds)
+    if (built.length === 0) return
+    setStations(built)
+    setCurrentIdx(0)
+    setTimeLeft(STATION_DURATION)
+    setStarted(true)
+    setFinished(false)
+    setStationScores([])
+    setRunning(true)
+  }
+
   const reset = () => {
     if (timerRef.current) clearInterval(timerRef.current)
     setStarted(false)
@@ -156,9 +192,10 @@ function SimulationContent() {
     setRunning(false)
     setCurrentIdx(0)
     setTimeLeft(STATION_DURATION)
-    setShowAnswer(false)
-    setShowHint(false)
-    setResults(new Map())
+    setStationScores([])
+    setMode(null)
+    setFolderYear(null)
+    setFolderBlock(null)
     loadData()
   }
 
@@ -169,9 +206,6 @@ function SimulationContent() {
   }
 
   const isUrgent = timeLeft <= 60
-  const filtered = getFilteredQuestions()
-  const currentQ = filtered[currentIdx]
-  const score = [...results.values()].filter(v => v === true).length
 
   if (loading) {
     return (
@@ -183,8 +217,9 @@ function SimulationContent() {
 
   // Finished screen
   if (finished) {
-    const total = results.size
-    const pct = total > 0 ? Math.round((score / total) * 100) : 0
+    const grade25 = stationScores.length > 0
+      ? ((stationScores.reduce((a, b) => a + b, 0) / stationScores.length) * 25)
+      : 0
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-4">
         <div className="max-w-md w-full text-center">
@@ -192,15 +227,15 @@ function SimulationContent() {
             <Trophy className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-2">Station Complete!</h2>
-          <p className="text-slate-400 mb-8">You've completed all {total} stations</p>
+          <p className="text-slate-400 mb-8">You've completed all {stationScores.length} stations</p>
 
           <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-6">
-            <div className="text-5xl font-bold text-cyan-400 mb-1">{pct}%</div>
-            <p className="text-slate-400 text-sm">{score} correct out of {total}</p>
+            <div className="text-5xl font-bold text-cyan-400 mb-1">{grade25.toFixed(1)} / 25</div>
+            <p className="text-slate-400 text-sm">Weighted grade across all stations</p>
             <div className="mt-4 h-2 bg-slate-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full"
-                style={{ width: `${pct}%` }}
+                style={{ width: `${(grade25 / 25) * 100}%` }}
               />
             </div>
           </div>
@@ -220,15 +255,22 @@ function SimulationContent() {
             </Link>
           </div>
         </div>
-        <footer className="fixed bottom-4 w-full text-center">
-          <p className="text-slate-700 text-xs">Made by Dr. Alhassan #44</p>
-        </footer>
       </div>
     )
   }
 
   // Setup screen
   if (!started) {
+    const withYear = subjects.filter(s => s.year != null)
+    const years = [...new Set(withYear.map(s => s.year as number))].sort()
+    const blocksForYear = folderYear !== null
+      ? [...new Set(withYear.filter(s => s.year === folderYear).map(s => s.block ?? 'General'))].sort()
+      : []
+    const randomCount = (folderYear !== null && folderBlock !== null)
+      ? allQuestions.filter(q => subjects.some(s => s.id === q.subject_id && s.year === folderYear && (s.block ?? 'General') === folderBlock)).length
+      : 0
+    const customCount = allQuestions.filter(q => customSelected.has(q.subject_id)).length
+
     return (
       <div className="min-h-screen bg-[#0a0f1e] p-4">
         <div className="max-w-2xl mx-auto pt-8">
@@ -244,75 +286,116 @@ function SimulationContent() {
             <p className="text-slate-400">5 minutes per station — just like the real exam</p>
           </div>
 
-          <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-6">
-            <h3 className="font-semibold text-white mb-4">How it works</h3>
-            <div className="space-y-3">
-              {[
-                { icon: '⏱️', text: 'Each station has a 5-minute countdown timer' },
-                { icon: '💡', text: 'Use the Hint button if you get stuck' },
-                { icon: '👁️', text: 'Reveal the answer to check yourself' },
-                { icon: '✓', text: 'Mark stations as correct or missed' },
-                { icon: '📊', text: 'See your score at the end' },
-              ].map(item => (
-                <div key={item.text} className="flex items-start gap-3">
-                  <span className="text-lg">{item.icon}</span>
-                  <p className="text-slate-300 text-sm">{item.text}</p>
+          {/* Mode picker */}
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <button
+              onClick={() => { setMode('random'); setFolderYear(null); setFolderBlock(null) }}
+              className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${mode === 'random' ? 'bg-cyan-500/15 border-cyan-500/50' : 'bg-slate-900/60 border-slate-700/40 hover:border-slate-600'}`}
+            >
+              <Shuffle className="w-5 h-5 text-cyan-400" />
+              <div className="text-left">
+                <p className="font-semibold text-white text-sm">Random by Block</p>
+                <p className="text-slate-500 text-xs">25 mixed stations</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setMode('custom')}
+              className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${mode === 'custom' ? 'bg-cyan-500/15 border-cyan-500/50' : 'bg-slate-900/60 border-slate-700/40 hover:border-slate-600'}`}
+            >
+              <ListChecks className="w-5 h-5 text-cyan-400" />
+              <div className="text-left">
+                <p className="font-semibold text-white text-sm">Choose Subjects</p>
+                <p className="text-slate-500 text-xs">Pick exactly what to study</p>
+              </div>
+            </button>
+          </div>
+
+          {mode === 'random' && (
+            <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-6">
+              <h3 className="font-semibold text-white mb-4">Choose a Year &amp; Block</h3>
+              {folderYear === null && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {years.map(yr => (
+                    <button key={yr} onClick={() => setFolderYear(yr)}
+                      className="group bg-slate-800/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-xl p-4 text-left transition-all">
+                      <Folder className="w-5 h-5 text-cyan-400 mb-2 group-hover:hidden" />
+                      <FolderOpen className="w-5 h-5 text-cyan-400 mb-2 hidden group-hover:block" />
+                      <p className="font-medium text-white text-sm">{yearLabel(yr)}</p>
+                    </button>
+                  ))}
                 </div>
-              ))}
+              )}
+              {folderYear !== null && folderBlock === null && (
+                <div>
+                  <button onClick={() => setFolderYear(null)} className="text-xs text-slate-400 hover:text-cyan-400 mb-3 inline-flex items-center gap-1">
+                    <ArrowLeft className="w-3 h-3" /> Years
+                  </button>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {blocksForYear.map(blk => (
+                      <button key={blk} onClick={() => setFolderBlock(blk)}
+                        className="group bg-slate-800/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-xl p-4 text-left transition-all">
+                        <Folder className="w-5 h-5 text-violet-400 mb-2 group-hover:hidden" />
+                        <FolderOpen className="w-5 h-5 text-violet-400 mb-2 hidden group-hover:block" />
+                        <p className="font-medium text-white text-sm">{blk}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {folderYear !== null && folderBlock !== null && (
+                <div className="flex items-center justify-between bg-slate-800/60 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-white text-sm font-medium">{yearLabel(folderYear)} · {folderBlock}</p>
+                    <p className="text-slate-500 text-xs">{randomCount} question(s) available, up to {MAX_STATIONS} stations</p>
+                  </div>
+                  <button onClick={() => setFolderBlock(null)} className="text-xs text-cyan-400 hover:text-cyan-300">Change</button>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Subject filter */}
-          <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-6">
-            <h3 className="font-semibold text-white mb-4">Filter by Subject (optional)</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setSelectedSubject(null)}
-                className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  !selectedSubject ? 'bg-cyan-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
-                }`}
-              >
-                All Subjects
-              </button>
-              {subjects.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => setSelectedSubject(s.id)}
-                  className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${
-                    selectedSubject === s.id ? 'bg-cyan-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span>{s.icon}</span> {s.name}
-                </button>
-              ))}
+          {mode === 'custom' && (
+            <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-6">
+              <h3 className="font-semibold text-white mb-4">Select Subjects</h3>
+              <div className="grid grid-cols-2 gap-2">
+                {subjects.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setCustomSelected(prev => {
+                      const next = new Set(prev)
+                      if (next.has(s.id)) next.delete(s.id); else next.add(s.id)
+                      return next
+                    })}
+                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${
+                      customSelected.has(s.id) ? 'bg-cyan-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span>{s.icon}</span> {s.name}
+                  </button>
+                ))}
+              </div>
+              <p className="text-slate-500 text-xs mt-3">{customCount} question(s) available, up to {MAX_STATIONS} stations</p>
             </div>
-          </div>
-
-          <div className="text-center mb-4">
-            <p className="text-slate-400 text-sm">
-              {filtered.length} questions {selectedSubject ? `in ${subjects.find(s => s.id === selectedSubject)?.name}` : 'across all subjects'}
-            </p>
-          </div>
+          )}
 
           <button
             onClick={startSimulation}
-            disabled={filtered.length === 0}
+            disabled={
+              mode === null ||
+              (mode === 'random' && (folderYear === null || folderBlock === null || randomCount === 0)) ||
+              (mode === 'custom' && (customSelected.size === 0 || customCount === 0))
+            }
             className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl text-lg transition-all shadow-lg shadow-cyan-500/20"
           >
             <Play className="w-5 h-5" /> Start Simulation
           </button>
         </div>
-        <footer className="mt-16 pb-6">
-          <p className="text-center text-slate-700 text-xs">Made by Dr. Alhassan #44</p>
-        </footer>
       </div>
     )
   }
 
   // Simulation screen
   if (!currentQ) return null
-
-  const currentResult = results.get(currentQ.id)
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] flex flex-col">
@@ -336,7 +419,7 @@ function SimulationContent() {
 
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400 text-sm">Station {currentIdx + 1} of {filtered.length}</span>
+              <span className="text-slate-400 text-sm">Station {currentIdx + 1} of {stations.length}</span>
               <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono font-bold text-sm ${
                 isUrgent
                   ? 'bg-red-500/20 text-red-400 border border-red-500/30 timer-urgent'
@@ -349,7 +432,7 @@ function SimulationContent() {
             <div className="mt-1 h-1 bg-slate-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-slate-600 rounded-full"
-                style={{ width: `${((currentIdx) / filtered.length) * 100}%` }}
+                style={{ width: `${((currentIdx) / stations.length) * 100}%` }}
               />
             </div>
           </div>
@@ -359,18 +442,23 @@ function SimulationContent() {
       {/* Question */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-3xl mx-auto px-4 py-6">
-          {/* Subject badge */}
-          {currentQ.subjects && (
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xl">{(currentQ.subjects as Subject).icon}</span>
-              <span className="text-sm text-slate-400">{(currentQ.subjects as Subject).name}</span>
-              {currentQ.station_number && (
-                <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">
-                  Station {currentQ.station_number}
-                </span>
-              )}
-            </div>
-          )}
+          {/* Subject badge + ratio badge */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {currentQ.subjects && (
+              <>
+                <span className="text-xl">{(currentQ.subjects as Subject).icon}</span>
+                <span className="text-sm text-slate-400">{(currentQ.subjects as Subject).name}</span>
+              </>
+            )}
+            {currentQ.station_number && (
+              <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+                Station {currentQ.station_number}
+              </span>
+            )}
+            <span className={`text-xs px-2 py-0.5 rounded border font-medium ${ratioColor(currentRatio)}`}>
+              {subAnswers.filter(a => a === true).length} / {subAnswers.length} correct
+            </span>
+          </div>
 
           {/* AUTO-MATCHED slide image from uploaded lectures */}
           {(() => {
@@ -406,17 +494,6 @@ function SimulationContent() {
             </div>
           )}
 
-          {/* Answer */}
-          {showAnswer && currentQ.answer && (
-            <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5 mb-4 answer-reveal">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Model Answer</span>
-              </div>
-              <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line">{currentQ.answer}</p>
-            </div>
-          )}
-
           {/* Action buttons */}
           <div className="flex flex-wrap gap-3 mb-6">
             {currentQ.hint && (
@@ -448,31 +525,75 @@ function SimulationContent() {
             )}
           </div>
 
-          {/* Self assessment */}
-          <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-5 mb-6">
-            <p className="text-slate-400 text-xs mb-3 uppercase tracking-wider font-medium">How did you do?</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => markResult(false)}
-                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
-                  currentResult === false
-                    ? 'bg-red-500/30 text-red-300 border-2 border-red-500/50'
-                    : 'bg-slate-800 text-slate-400 hover:bg-red-500/10 hover:text-red-300 border-2 border-transparent'
-                }`}
-              >
-                ✗ Missed it
-              </button>
-              <button
-                onClick={() => markResult(true)}
-                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
-                  currentResult === true
-                    ? 'bg-emerald-500/30 text-emerald-300 border-2 border-emerald-500/50'
-                    : 'bg-slate-800 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-300 border-2 border-transparent'
-                }`}
-              >
-                ✓ Got it!
-              </button>
+          {/* Sub-question grading */}
+          <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-5 mb-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-slate-400 text-xs uppercase tracking-wider font-medium">
+                {currentQ.sub_questions?.length ? `Sub-questions (${currentQ.sub_questions.length})` : 'How did you do?'}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSubAnswers(new Array(subCount).fill(true))}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-colors"
+                >
+                  <CheckCheck className="w-3 h-3" /> Got it all
+                </button>
+                <button
+                  onClick={() => setSubAnswers(new Array(subCount).fill(false))}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors"
+                >
+                  <XCircle className="w-3 h-3" /> Don't know any
+                </button>
+              </div>
             </div>
+
+            {currentQ.sub_questions?.length ? (
+              currentQ.sub_questions.map((sq, idx) => (
+                <div key={idx} className="border-l-2 border-slate-700 pl-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-cyan-300 text-xs font-medium">{sq.label}</p>
+                      <p className="text-slate-300 text-sm">{sq.question}</p>
+                      {showAnswer && <p className="text-cyan-100/80 text-xs mt-1 whitespace-pre-line">{sq.answer}</p>}
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setSubAnswers(prev => prev.map((a, i) => i === idx ? false : a))}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          subAnswers[idx] === false ? 'bg-red-500/30 text-red-300 border border-red-500/50' : 'bg-slate-800 text-slate-400 hover:bg-red-500/10'
+                        }`}
+                      >✗</button>
+                      <button
+                        onClick={() => setSubAnswers(prev => prev.map((a, i) => i === idx ? true : a))}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          subAnswers[idx] === true ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800 text-slate-400 hover:bg-emerald-500/10'
+                        }`}
+                      >✓</button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <>
+                {showAnswer && currentQ.answer && (
+                  <p className="text-cyan-100/80 text-sm whitespace-pre-line">{currentQ.answer}</p>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setSubAnswers([false])}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+                      subAnswers[0] === false ? 'bg-red-500/30 text-red-300 border-2 border-red-500/50' : 'bg-slate-800 text-slate-400 hover:bg-red-500/10 hover:text-red-300 border-2 border-transparent'
+                    }`}
+                  >✗ Missed it</button>
+                  <button
+                    onClick={() => setSubAnswers([true])}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+                      subAnswers[0] === true ? 'bg-emerald-500/30 text-emerald-300 border-2 border-emerald-500/50' : 'bg-slate-800 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-300 border-2 border-transparent'
+                    }`}
+                  >✓ Got it!</button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Navigation */}
@@ -488,16 +609,12 @@ function SimulationContent() {
               onClick={handleNextStation}
               className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white py-3 rounded-xl text-sm font-bold transition-all"
             >
-              {currentIdx === filtered.length - 1 ? 'Finish' : 'Next Station'}
+              {currentIdx === stations.length - 1 ? 'Finish' : 'Next Station'}
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
-
-      <footer className="py-3">
-        <p className="text-center text-slate-700 text-xs">Made by Dr. Alhassan #44</p>
-      </footer>
     </div>
   )
 }
