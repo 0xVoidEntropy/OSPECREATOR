@@ -296,6 +296,19 @@ function SimulationContent() {
       : 0
     const customCount = allQuestions.filter(q => customSelected.has(q.subject_id)).length
 
+    // Group subjects by Year > Block so same-named subjects from different
+    // blocks (which look like duplicates in a flat list) are distinguishable.
+    const customGroups = (() => {
+      const groups = new Map<string, { label: string; subjects: typeof subjects }>()
+      for (const s of subjects) {
+        const key = `${s.year ?? 'x'}|${s.block ?? ''}`
+        const label = s.year != null ? `${yearLabel(s.year)}${s.block ? ` · ${s.block}` : ''}` : 'Other'
+        if (!groups.has(key)) groups.set(key, { label, subjects: [] })
+        groups.get(key)!.subjects.push(s)
+      }
+      return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label))
+    })()
+
     return (
       <div className="min-h-screen bg-[#0a0f1e] p-4">
         <div className="max-w-2xl mx-auto pt-8">
@@ -382,21 +395,28 @@ function SimulationContent() {
           {mode === 'custom' && (
             <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-6">
               <h3 className="font-semibold text-white mb-4">Select Subjects</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {subjects.map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => setCustomSelected(prev => {
-                      const next = new Set(prev)
-                      if (next.has(s.id)) next.delete(s.id); else next.add(s.id)
-                      return next
-                    })}
-                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${
-                      customSelected.has(s.id) ? 'bg-cyan-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <span>{s.icon}</span> {s.name}
-                  </button>
+              <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+                {customGroups.map(group => (
+                  <div key={group.label}>
+                    <p className="text-slate-500 text-xs uppercase tracking-wider font-medium mb-2">{group.label}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {group.subjects.map(s => (
+                        <button
+                          key={s.id}
+                          onClick={() => setCustomSelected(prev => {
+                            const next = new Set(prev)
+                            if (next.has(s.id)) next.delete(s.id); else next.add(s.id)
+                            return next
+                          })}
+                          className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${
+                            customSelected.has(s.id) ? 'bg-cyan-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span>{s.icon}</span> {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
               <p className="text-slate-500 text-xs mt-3">{customCount} question(s) available, up to {MAX_STATIONS} stations</p>
