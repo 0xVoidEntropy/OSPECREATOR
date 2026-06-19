@@ -7,7 +7,7 @@ import { Question, Subject, UserProgress, Lecture, LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
 import {
   ArrowLeft, Lightbulb, Eye, EyeOff, CheckCircle, Clock,
-  BookOpen, FileText, ExternalLink, Loader2, ImageIcon, X, ZoomIn, Plus, Layers
+  BookOpen, FileText, ExternalLink, Loader2, ImageIcon, X, ZoomIn, Plus
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -195,13 +195,6 @@ export default function SubjectPage() {
             <p className="text-slate-500 text-xs">{answered} / {questions.length} answered</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Link
-              href={`/flashcards?subject=${subjectId}`}
-              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-            >
-              <Layers className="w-4 h-4" />
-              <span className="hidden sm:inline">Flashcards</span>
-            </Link>
             <Link
               href={`/simulation?subject=${subjectId}`}
               className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"

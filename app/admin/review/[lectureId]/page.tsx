@@ -42,7 +42,10 @@ function CroppedPreview({ imageUrl, crop }: { imageUrl: string; crop: Crop }) {
 
 function CropEditor({ imageUrl, crop, onChange }: { imageUrl: string; crop: Crop | null; onChange: (c: Crop) => void }) {
   const boxRef = useRef<HTMLDivElement>(null)
-  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const pendingRef = useRef<Crop | null>(null)
   const [draft, setDraft] = useState<Crop | null>(crop)
 
   useEffect(() => setDraft(crop), [crop])
@@ -57,42 +60,76 @@ function CropEditor({ imageUrl, crop, onChange }: { imageUrl: string; crop: Crop
     }
   }
 
-  const handleDown = (e: React.MouseEvent) => {
-    const p = toPct(e.clientX, e.clientY)
-    setDragStart(p)
-    setDraft({ x: p.x, y: p.y, w: 0, h: 0 })
+  // Paint the overlay box directly via the DOM on every frame (no React re-render
+  // mid-drag) so dragging stays smooth even on large slide images; React state is
+  // only committed once per animation frame for the live crop preview pane.
+  const paintOverlay = (c: Crop) => {
+    const el = overlayRef.current
+    if (!el) return
+    el.style.display = c.w > 0 ? 'block' : 'none'
+    el.style.left = `${c.x}%`
+    el.style.top = `${c.y}%`
+    el.style.width = `${c.w}%`
+    el.style.height = `${c.h}%`
   }
-  const handleMove = (e: React.MouseEvent) => {
-    if (!dragStart) return
-    const p = toPct(e.clientX, e.clientY)
-    const x = Math.min(dragStart.x, p.x)
-    const y = Math.min(dragStart.y, p.y)
-    const w = Math.abs(p.x - dragStart.x)
-    const h = Math.abs(p.y - dragStart.y)
-    setDraft({ x, y, w, h })
+
+  const scheduleDraftUpdate = (c: Crop) => {
+    pendingRef.current = c
+    if (rafRef.current == null) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null
+        if (pendingRef.current) setDraft(pendingRef.current)
+      })
+    }
   }
-  const handleUp = () => {
-    if (dragStart && draft && draft.w > 1 && draft.h > 1) onChange(draft)
-    setDragStart(null)
+
+  const handleDown = (e: React.PointerEvent) => {
+    e.preventDefault()
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    const p = toPct(e.clientX, e.clientY)
+    dragStartRef.current = p
+    const next = { x: p.x, y: p.y, w: 0, h: 0 }
+    paintOverlay(next)
+    setDraft(next)
+  }
+  const handleMove = (e: React.PointerEvent) => {
+    if (!dragStartRef.current) return
+    const start = dragStartRef.current
+    const p = toPct(e.clientX, e.clientY)
+    const x = Math.min(start.x, p.x)
+    const y = Math.min(start.y, p.y)
+    const w = Math.abs(p.x - start.x)
+    const h = Math.abs(p.y - start.y)
+    const next = { x, y, w, h }
+    paintOverlay(next)
+    scheduleDraftUpdate(next)
+  }
+  const handleUp = (e: React.PointerEvent) => {
+    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+    if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
+    const finalCrop = pendingRef.current || draft
+    if (finalCrop) setDraft(finalCrop)
+    if (dragStartRef.current && finalCrop && finalCrop.w > 1 && finalCrop.h > 1) onChange(finalCrop)
+    dragStartRef.current = null
+    pendingRef.current = null
   }
 
   return (
     <div className="grid grid-cols-2 gap-3">
       <div
         ref={boxRef}
-        className="relative w-full select-none cursor-crosshair border border-slate-700 rounded-lg overflow-hidden"
-        onMouseDown={handleDown}
-        onMouseMove={handleMove}
-        onMouseUp={handleUp}
+        className="relative w-full select-none cursor-crosshair border border-slate-700 rounded-lg overflow-hidden touch-none"
+        onPointerDown={handleDown}
+        onPointerMove={handleMove}
+        onPointerUp={handleUp}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={imageUrl} alt="slide" className="w-full block pointer-events-none" />
-        {draft && draft.w > 0 && (
-          <div
-            className="absolute border-2 border-cyan-400 bg-cyan-400/15"
-            style={{ left: `${draft.x}%`, top: `${draft.y}%`, width: `${draft.w}%`, height: `${draft.h}%` }}
-          />
-        )}
+        <img src={imageUrl} alt="slide" className="w-full block pointer-events-none" draggable={false} />
+        <div
+          ref={overlayRef}
+          className="absolute border-2 border-cyan-400 bg-cyan-400/15 will-change-transform"
+          style={{ display: draft && draft.w > 0 ? 'block' : 'none', left: `${draft?.x ?? 0}%`, top: `${draft?.y ?? 0}%`, width: `${draft?.w ?? 0}%`, height: `${draft?.h ?? 0}%` }}
+        />
       </div>
       <div className="rounded-lg overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center">
         {draft && draft.w > 0 ? (

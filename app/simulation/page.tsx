@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { Question, Subject } from '@/types'
 import {
   ArrowLeft, Clock, ChevronRight, ChevronLeft, Lightbulb, Eye, EyeOff,
-  Play, RotateCcw, Trophy, Loader2, X, Shuffle, ListChecks, Folder, FolderOpen, CheckCheck, XCircle
+  Play, RotateCcw, Trophy, Loader2, X, Shuffle, ListChecks, Folder, FolderOpen, CheckCheck, XCircle, CheckCircle
 } from 'lucide-react'
 import { LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
@@ -491,6 +491,17 @@ function SimulationContent() {
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Hint</span>
               </div>
               <p className="text-amber-100/80 text-sm leading-relaxed">{currentQ.hint}</p>
+            </div>
+          )}
+
+          {/* Answer */}
+          {showAnswer && currentQ.answer && (
+            <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-5 mb-4 answer-reveal">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-4 h-4 text-cyan-400" />
+                <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Model Answer — check yourself below</span>
+              </div>
+              <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line">{currentQ.answer}</p>
             </div>
           )}
 

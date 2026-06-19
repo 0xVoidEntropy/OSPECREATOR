@@ -241,6 +241,16 @@ function FlashcardsContent() {
   )
 }
 
+function FlashcardsDisabled() {
+  const router = useRouter()
+  useEffect(() => { router.replace('/dashboard') }, [router])
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+    </div>
+  )
+}
+
 export default function FlashcardsPage() {
   return (
     <Suspense fallback={
@@ -248,7 +258,7 @@ export default function FlashcardsPage() {
         <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
       </div>
     }>
-      <FlashcardsContent />
+      <FlashcardsDisabled />
     </Suspense>
   )
 }

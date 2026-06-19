@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Subject } from '@/types'
 import { ADMIN_EMAIL } from '@/lib/admin'
-import { BookOpen, LogOut, Clock, Trophy, Target, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, Layers, ArrowLeft } from 'lucide-react'
+import { BookOpen, LogOut, Clock, Trophy, Target, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 interface SubjectStats extends Subject {
@@ -209,7 +209,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <Link
             href="/simulation"
             className="group bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 hover:border-cyan-400/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-cyan-500/10"
@@ -221,22 +221,6 @@ export default function Dashboard() {
               <div>
                 <h3 className="font-bold text-white">5-min Station Simulation</h3>
                 <p className="text-slate-400 text-sm">Timed OSPE exam experience</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-slate-500 ml-auto group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          <Link
-            href="/flashcards"
-            className="group bg-gradient-to-r from-emerald-500/20 to-teal-600/20 border border-emerald-500/30 hover:border-emerald-400/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/10"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Layers className="w-6 h-6 text-emerald-400" />
-              </div>
-              <div>
-                <h3 className="font-bold text-white">Flashcards</h3>
-                <p className="text-slate-400 text-sm">Quick flip-through revision</p>
               </div>
               <ChevronRight className="w-5 h-5 text-slate-500 ml-auto group-hover:translate-x-1 transition-transform" />
             </div>
