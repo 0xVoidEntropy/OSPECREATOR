@@ -32,6 +32,7 @@ export default function SubjectPage() {
   const [lecturePages, setLecturePages] = useState<LecturePage[]>([])
   const [loading, setLoading] = useState(true)
   const [activeStation, setActiveStation] = useState<number | null>(null)
+  const [activeLab, setActiveLab] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'unanswered' | 'answered'>('all')
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
   const [activeLecture, setActiveLecture] = useState<Lecture | null>(null)
@@ -107,7 +108,17 @@ export default function SubjectPage() {
     if (filter === 'answered') return prog?.answered
     if (filter === 'unanswered') return !prog?.answered
     return true
-  }).filter(q => activeStation === null || q.station_number === activeStation)
+  })
+    .filter(q => activeStation === null || q.station_number === activeStation)
+    .filter(q => activeLab === null || q.lecture_id === activeLab)
+
+  // Per-lab (lecture) progress, so a student can study one finished lab at a time
+  // instead of the whole subject.
+  const labStats = lectures.map(lec => {
+    const labQuestions = questions.filter(q => q.lecture_id === lec.id)
+    const labAnswered = labQuestions.filter(q => progress.get(q.id)?.answered).length
+    return { lecture: lec, total: labQuestions.length, answered: labAnswered }
+  }).filter(l => l.total > 0)
 
   const stations = [...new Set(questions.map(q => q.station_number).filter(Boolean))] as number[]
   // Display sequential 1..N station numbers regardless of the raw DB station_number values
@@ -250,29 +261,61 @@ export default function SubjectPage() {
           </div>
         </div>
 
-        {/* Lectures — clickable to open PDF inline */}
-        {lectures.length > 0 && (
+        {/* Labs — study one finished lab/lecture at a time instead of the whole subject */}
+        {labStats.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <FileText className="w-4 h-4" /> Lecture Materials — Click to View
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {lectures.map(lecture => (
-                <button
-                  key={lecture.id}
-                  onClick={() => setActiveLecture(lecture)}
-                  className="flex items-center gap-3 bg-slate-900/60 border border-slate-700/40 rounded-xl p-3 hover:border-cyan-500/40 hover:bg-cyan-500/5 transition-all group text-left"
-                >
-                  <div className="w-9 h-9 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4 text-cyan-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-300 group-hover:text-white transition-colors truncate">{lecture.title}</p>
-                    <p className="text-xs text-slate-500">Click to view inline</p>
-                  </div>
-                  <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 shrink-0" />
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Study by Lab
+              </h2>
+              {activeLab !== null && (
+                <button onClick={() => setActiveLab(null)} className="text-xs text-cyan-400 hover:text-cyan-300">
+                  Show all labs
                 </button>
-              ))}
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {labStats.map(({ lecture, total, answered: labAnswered }) => {
+                const done = total > 0 && labAnswered === total
+                const isActive = activeLab === lecture.id
+                const percent = total ? Math.round((labAnswered / total) * 100) : 0
+                return (
+                  <div
+                    key={lecture.id}
+                    className={`relative bg-slate-900/60 border rounded-xl p-3 transition-all ${
+                      isActive ? 'border-cyan-500/60 bg-cyan-500/5' : done ? 'border-emerald-500/30' : 'border-slate-700/40 hover:border-slate-600/60'
+                    }`}
+                  >
+                    <button
+                      onClick={() => setActiveLab(isActive ? null : lecture.id)}
+                      className="flex items-center gap-3 w-full text-left"
+                    >
+                      <div className="w-9 h-9 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4 text-cyan-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-300 truncate flex items-center gap-1.5">
+                          {lecture.title}
+                          {done && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                        </p>
+                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1.5">
+                          <div className={`h-full rounded-full ${done ? 'bg-emerald-500' : 'bg-cyan-500'}`} style={{ width: `${percent}%` }} />
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">{labAnswered}/{total} done{isActive ? ' · studying this lab' : ''}</p>
+                      </div>
+                    </button>
+                    {lecture.file_url && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setActiveLecture(lecture) }}
+                        className="absolute top-2.5 right-2.5 text-slate-500 hover:text-cyan-400"
+                        title="View lecture PDF"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
