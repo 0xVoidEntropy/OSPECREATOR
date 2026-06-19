@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Subject } from '@/types'
 import { ADMIN_EMAIL } from '@/lib/admin'
-import { BookOpen, LogOut, Clock, Trophy, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, ArrowLeft, Trash2 } from 'lucide-react'
+import { BookOpen, LogOut, Clock, Trophy, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
 interface SubjectStats extends Subject {
@@ -13,12 +13,10 @@ interface SubjectStats extends Subject {
   answered: number
 }
 
-function SubjectCard({ subject, getSubjectBg, getProgressColor, isAdmin, onDelete }: {
+function SubjectCard({ subject, getSubjectBg, getProgressColor }: {
   subject: SubjectStats
   getSubjectBg: (color: string) => string
   getProgressColor: (color: string) => string
-  isAdmin: boolean
-  onDelete: (subject: SubjectStats) => void
 }) {
   const percent = subject.total > 0 ? Math.round((subject.answered / subject.total) * 100) : 0
   return (
@@ -26,22 +24,13 @@ function SubjectCard({ subject, getSubjectBg, getProgressColor, isAdmin, onDelet
       href={`/subjects/${subject.id}`}
       className={`group relative bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-2xl p-5 transition-all hover:scale-[1.02]`}
     >
-      {isAdmin && (
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(subject) }}
-          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg bg-slate-900/60 text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-          title="Delete subject"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      )}
       <div className="flex items-center justify-between mb-3">
         <BookOpen className="w-6 h-6 text-white/80" />
         <span className="text-xs font-medium text-slate-300 bg-slate-900/40 px-2 py-0.5 rounded-full">
           {subject.answered}/{subject.total}
         </span>
       </div>
-      <h4 className="font-bold text-white pr-6">{subject.name}</h4>
+      <h4 className="font-bold text-white">{subject.name}</h4>
       {subject.description && <p className="text-slate-400 text-xs mt-1 line-clamp-2">{subject.description}</p>}
       <div className="h-1.5 bg-slate-900/40 rounded-full overflow-hidden mt-3">
         <div className={`h-full ${getProgressColor(subject.color)} rounded-full transition-all duration-700`} style={{ width: `${percent}%` }} />
@@ -108,15 +97,6 @@ export default function Dashboard() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/auth')
-  }
-
-  const handleDeleteSubject = async (subject: SubjectStats) => {
-    if (!confirm(`Delete "${subject.name}" and all its lectures/questions? This can't be undone.`)) return
-    await supabase.from('questions').delete().eq('subject_id', subject.id)
-    await supabase.from('lectures').delete().eq('subject_id', subject.id)
-    await supabase.from('subjects').delete().eq('id', subject.id)
-    setSubjects(prev => prev.filter(s => s.id !== subject.id))
-    setTotalStats(prev => ({ total: prev.total - subject.total, answered: prev.answered - subject.answered }))
   }
 
   const getSubjectBg = (color: string) => {
@@ -231,20 +211,12 @@ export default function Dashboard() {
             </div>
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
               {subjects.map(s => (
-                <div key={s.id} className="flex items-center justify-between gap-3 bg-slate-800/50 rounded-xl px-3 py-2.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span>{s.icon}</span>
-                    <span className="text-sm text-white truncate">{s.name}</span>
-                    <span className="text-xs text-slate-500 shrink-0">
-                      {s.year != null ? `Y${s.year}` : '—'}{s.block ? ` · ${s.block}` : ''} · {s.total} q
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteSubject(s)}
-                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors shrink-0"
-                  >
-                    <Trash2 className="w-3 h-3" /> Delete
-                  </button>
+                <div key={s.id} className="flex items-center gap-2 bg-slate-800/50 rounded-xl px-3 py-2.5">
+                  <span>{s.icon}</span>
+                  <span className="text-sm text-white truncate">{s.name}</span>
+                  <span className="text-xs text-slate-500 shrink-0">
+                    {s.year != null ? `Y${s.year}` : '—'}{s.block ? ` · ${s.block}` : ''} · {s.total} q
+                  </span>
                 </div>
               ))}
               {subjects.length === 0 && <p className="text-slate-500 text-sm">No subjects yet.</p>}
@@ -363,7 +335,7 @@ export default function Dashboard() {
             if (folderYear === 'other') {
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {noYear.map(s => <SubjectCard key={s.id} subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} isAdmin={user?.email === ADMIN_EMAIL} onDelete={handleDeleteSubject} />)}
+                  {noYear.map(s => <SubjectCard key={s.id} subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} />)}
                 </div>
               )
             }
@@ -397,7 +369,7 @@ export default function Dashboard() {
             const blockSubjects = yearSubjects.filter(s => (s.block ?? 'General') === folderBlock)
             return (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {blockSubjects.map(s => <SubjectCard key={s.id} subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} isAdmin={user?.email === ADMIN_EMAIL} onDelete={handleDeleteSubject} />)}
+                {blockSubjects.map(s => <SubjectCard key={s.id} subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} />)}
               </div>
             )
           })()}

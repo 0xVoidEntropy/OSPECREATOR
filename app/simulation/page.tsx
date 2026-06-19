@@ -557,11 +557,9 @@ function SimulationContent() {
                 <span className="text-sm text-slate-400">{(currentQ.subjects as Subject).name}</span>
               </>
             )}
-            {currentQ.station_number && (
-              <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">
-                Station {currentQ.station_number}
-              </span>
-            )}
+            <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+              Station {currentIdx + 1}
+            </span>
             <span className={`text-xs px-2 py-0.5 rounded border font-medium ${ratioColor(currentRatio)}`}>
               {subAnswers.filter(a => a === true).length} / {subAnswers.length} correct
             </span>
