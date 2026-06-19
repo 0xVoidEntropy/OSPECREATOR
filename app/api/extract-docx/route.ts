@@ -106,29 +106,34 @@ async function handler(request: Request) {
   let pageNumber = 0
 
   for (const entity of entities) {
-    if (!entity.images.length || !entity.qas.length) continue
+    if (!entity.qas.length) continue
     pageNumber++
 
-    const uploadedUrls: string[] = []
-    for (let i = 0; i < entity.images.length; i++) {
-      const img = entity.images[i]
-      const ext = img.mime.split('/')[1] || 'jpg'
-      const path = `${lectureId}/entity-${pageNumber}-img-${i + 1}.${ext}`
-      const { error: upErr } = await admin.storage.from('slide-images').upload(path, img.data, { contentType: img.mime, upsert: true })
-      if (upErr) continue
-      const { data: { publicUrl } } = admin.storage.from('slide-images').getPublicUrl(path)
-      uploadedUrls.push(publicUrl)
+    // Image is optional — biochem/physiology-style labs are pure text Q&A
+    let primaryImage: string | null = null
+    if (entity.images.length) {
+      const uploadedUrls: string[] = []
+      for (let i = 0; i < entity.images.length; i++) {
+        const img = entity.images[i]
+        const ext = img.mime.split('/')[1] || 'jpg'
+        const path = `${lectureId}/entity-${pageNumber}-img-${i + 1}.${ext}`
+        const { error: upErr } = await admin.storage.from('slide-images').upload(path, img.data, { contentType: img.mime, upsert: true })
+        if (upErr) continue
+        const { data: { publicUrl } } = admin.storage.from('slide-images').getPublicUrl(path)
+        uploadedUrls.push(publicUrl)
+      }
+      primaryImage = uploadedUrls[0] || null
     }
-    if (!uploadedUrls.length) continue
-    const primaryImage = uploadedUrls[0]
 
-    await admin.from('lecture_pages').insert({
-      lecture_id: lectureId,
-      subject_id: subjectId,
-      page_number: pageNumber,
-      image_url: primaryImage,
-      text_content: entity.title,
-    })
+    if (primaryImage) {
+      await admin.from('lecture_pages').insert({
+        lecture_id: lectureId,
+        subject_id: subjectId,
+        page_number: pageNumber,
+        image_url: primaryImage,
+        text_content: entity.title,
+      })
+    }
 
     const toInsert = entity.qas
       .filter(qa => qa.question && qa.answer)
