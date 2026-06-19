@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Question, Subject, UserProgress, Lecture, LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
+import CroppedImage from '@/components/CroppedImage'
 import {
   ArrowLeft, Lightbulb, Eye, EyeOff, CheckCircle, Clock,
   BookOpen, FileText, ExternalLink, Loader2, ImageIcon, X, ZoomIn, Plus
@@ -341,20 +342,7 @@ export default function SubjectPage() {
                     <div className="mb-4 relative group cursor-pointer" onClick={() => setZoomedImage(matchedImage)}>
                       <div className="relative w-full rounded-xl overflow-hidden border border-slate-700/50 bg-slate-800">
                         {crop ? (
-                          <div style={{ paddingBottom: `${(crop.h / crop.w) * 100}%`, position: 'relative', overflow: 'hidden' }}>
-                            <img
-                              src={matchedImage}
-                              alt={`Slide for station ${q.station_number}`}
-                              loading="lazy"
-                              style={{
-                                position: 'absolute',
-                                width: `${100 / (crop.w / 100)}%`,
-                                height: `${100 / (crop.h / 100)}%`,
-                                left: `${-crop.x / crop.w * 100}%`,
-                                top: `${-crop.y / crop.h * 100}%`,
-                              }}
-                            />
-                          </div>
+                          <CroppedImage src={matchedImage} crop={crop} alt={`Slide for station ${q.station_number}`} />
                         ) : (
                         <img
                           src={matchedImage}

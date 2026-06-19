@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { ADMIN_EMAIL } from '@/lib/admin'
 import { ArrowLeft, Loader2, Save, Trash2, Crop as CropIcon } from 'lucide-react'
 import Link from 'next/link'
+import CroppedImage from '@/components/CroppedImage'
 
 interface Crop { x: number; y: number; w: number; h: number }
 interface SubQuestion { label: string; question: string; hint: string; answer: string }
@@ -25,19 +26,7 @@ interface QuestionRow {
 
 function CroppedPreview({ imageUrl, crop }: { imageUrl: string; crop: Crop }) {
   if (!crop.w || !crop.h) return null
-  return (
-    <div style={{ paddingBottom: `${(crop.h / crop.w) * 100}%`, position: 'relative', overflow: 'hidden' }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageUrl} alt="" style={{
-        position: 'absolute',
-        width: `${100 / (crop.w / 100)}%`,
-        height: `${100 / (crop.h / 100)}%`,
-        left: `${-crop.x / crop.w * 100}%`,
-        top: `${-crop.y / crop.h * 100}%`,
-        maxWidth: 'none',
-      }} />
-    </div>
-  )
+  return <CroppedImage src={imageUrl} crop={crop} />
 }
 
 function CropEditor({ imageUrl, crop, onChange }: { imageUrl: string; crop: Crop | null; onChange: (c: Crop) => void }) {

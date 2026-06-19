@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
+import CroppedImage from '@/components/CroppedImage'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
@@ -222,7 +223,7 @@ function SimulationContent() {
       : 0
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center">
+        <div className="max-w-lg w-full text-center">
           <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <Trophy className="w-10 h-10 text-white" />
           </div>
@@ -237,6 +238,28 @@ function SimulationContent() {
                 className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full"
                 style={{ width: `${(grade25 / 25) * 100}%` }}
               />
+            </div>
+          </div>
+
+          <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4 mb-6 max-h-72 overflow-y-auto text-left">
+            <p className="text-slate-500 text-xs uppercase tracking-wider font-medium mb-3 px-1">Per-station breakdown</p>
+            <div className="space-y-1.5">
+              {stations.map((s, i) => {
+                const ratio = stationScores[i] ?? 0
+                return (
+                  <div key={s.id} className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg bg-slate-800/40">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-6 h-6 shrink-0 flex items-center justify-center rounded-md text-[10px] font-bold border ${ratioColor(ratio)}`}>
+                        {i + 1}
+                      </span>
+                      <span className="text-slate-300 text-xs truncate">{(s.subjects as Subject | undefined)?.name || 'Station'}</span>
+                    </div>
+                    <span className={`text-xs font-bold shrink-0 ${ratio === 1 ? 'text-emerald-400' : ratio === 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                      {Math.round(ratio * 100)}%
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -437,6 +460,25 @@ function SimulationContent() {
             </div>
           </div>
         </div>
+
+        {/* Station-by-station right/wrong overview, updates live as you go */}
+        <div className="max-w-3xl mx-auto px-4 pb-3 flex flex-wrap gap-1.5">
+          {stations.map((_, i) => {
+            const done = i < stationScores.length
+            const isCurrent = i === currentIdx
+            const ratio = done ? stationScores[i] : (isCurrent ? currentRatio : 0)
+            const colorClass = done || isCurrent ? ratioColor(ratio) : 'bg-slate-800 text-slate-500 border-slate-700'
+            return (
+              <span
+                key={i}
+                title={`Station ${i + 1}${done ? ` — ${Math.round(ratio * 100)}%` : ''}`}
+                className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold border ${colorClass} ${isCurrent ? 'ring-2 ring-cyan-400' : ''}`}
+              >
+                {i + 1}
+              </span>
+            )
+          })}
+        </div>
       </div>
 
       {/* Question */}
@@ -463,19 +505,25 @@ function SimulationContent() {
           {/* AUTO-MATCHED slide image from uploaded lectures */}
           {(() => {
             const img = currentQ.image_url || findBestImage(currentQ.question_text, currentQ.answer || '', currentQ.hint || '', lecturePages)
-            return img ? (
+            if (!img) return null
+            const crop = currentQ.image_url ? currentQ.image_crop : null
+            return (
               <div className="mb-4 rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-800 relative">
-                <img
-                  src={img}
-                  alt={`Slide for station ${currentQ.station_number}`}
-                  className="w-full object-contain max-h-72"
-                  loading="lazy"
-                />
+                {crop ? (
+                  <CroppedImage src={img} crop={crop} alt={`Slide for station ${currentQ.station_number}`} />
+                ) : (
+                  <img
+                    src={img}
+                    alt={`Slide for station ${currentQ.station_number}`}
+                    className="w-full object-contain max-h-72"
+                    loading="lazy"
+                  />
+                )}
                 <div className="absolute bottom-2 right-2 bg-black/60 text-slate-400 text-xs px-2 py-1 rounded-lg">
                   From your lecture slides
                 </div>
               </div>
-            ) : null
+            )
           })()}
 
           {/* Question text */}
