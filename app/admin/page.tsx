@@ -44,8 +44,7 @@ export default function AdminPage() {
   const [processing, setProcessing] = useState(false)
   const [log, setLog] = useState<string[]>([])
   const [currentJob, setCurrentJob] = useState<ProcessingJob | null>(null)
-  const [completedLectures, setCompletedLectures] = useState<{ id: string; fileName: string; count: number }[]>([])
-  const [allLectures, setAllLectures] = useState<{ id: string; title: string; created_at: string }[]>([])
+  const [allLectures, setAllLectures] = useState<{ id: string; title: string; created_at: string; questionCount: number }[]>([])
   const logEndRef = useRef<HTMLDivElement>(null)
   const allFilesRef = useRef<FileWithSubject[]>([])
 
@@ -54,8 +53,15 @@ export default function AdminPage() {
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [log])
 
   const loadAllLectures = useCallback(async () => {
-    const { data } = await supabase.from('lectures').select('id, title, created_at').order('created_at', { ascending: false })
-    if (data) setAllLectures(data)
+    const { data: lectures } = await supabase.from('lectures').select('id, title, created_at').order('created_at', { ascending: false })
+    if (!lectures) return
+    const { data: counts } = await supabase.from('questions').select('lecture_id')
+    const countMap: Record<string, number> = {}
+    for (const row of counts || []) {
+      if (!row.lecture_id) continue
+      countMap[row.lecture_id] = (countMap[row.lecture_id] || 0) + 1
+    }
+    setAllLectures(lectures.map(l => ({ ...l, questionCount: countMap[l.id] || 0 })))
   }, [supabase])
 
   useEffect(() => { loadAllLectures() }, [loadAllLectures])
@@ -128,7 +134,6 @@ export default function AdminPage() {
         const data = await res.json()
         if (!res.ok) { addLog(`✗ Parse failed: ${data.error}`); processNext(rest); return }
         addLog(`✓ ${data.count} questions from "${next.file.name}" (${data.entities} entities)`)
-        setCompletedLectures(prev => [...prev, { id: lec.id, fileName: next.file.name, count: data.count }])
         loadAllLectures()
         processNext(rest)
         return
@@ -157,7 +162,6 @@ export default function AdminPage() {
       nextIndex = data.nextIndex || 0
     }
     addLog(`✓ ${total} questions from "${fileName}"`)
-    setCompletedLectures(prev => [...prev, { id: lectureId, fileName, count: total }])
     loadAllLectures()
     processNext(remainingFiles)
   }, [currentJob, addLog, processNext, loadAllLectures])
@@ -276,21 +280,18 @@ export default function AdminPage() {
           <h2 className="font-semibold text-white mb-4">All lectures — review &amp; polish anytime</h2>
           {!allLectures.length && <p className="text-slate-500 text-sm">No lectures uploaded yet.</p>}
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {allLectures.map(l => {
-              const justDone = completedLectures.find(c => c.id === l.id)
-              return (
-                <Link key={l.id} href={`/admin/review/${l.id}`}
-                  className="flex items-center justify-between bg-slate-700/40 hover:bg-slate-700/60 rounded-xl px-4 py-3 transition-colors">
-                  <div>
-                    <p className="text-white text-sm font-medium">{l.title}</p>
-                    <p className="text-slate-500 text-xs">
-                      {justDone ? `${justDone.count} question(s) generated · ` : ''}{new Date(l.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <span className="flex items-center gap-1 text-cyan-400 text-xs"><ClipboardEdit className="w-3.5 h-3.5" /> Review</span>
-                </Link>
-              )
-            })}
+            {allLectures.map(l => (
+              <Link key={l.id} href={`/admin/review/${l.id}`}
+                className="flex items-center justify-between bg-slate-700/40 hover:bg-slate-700/60 rounded-xl px-4 py-3 transition-colors">
+                <div>
+                  <p className="text-white text-sm font-medium">{l.title}</p>
+                  <p className="text-slate-500 text-xs">
+                    {l.questionCount} question(s) generated · {new Date(l.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <span className="flex items-center gap-1 text-cyan-400 text-xs"><ClipboardEdit className="w-3.5 h-3.5" /> Review</span>
+              </Link>
+            ))}
           </div>
         </div>
       </div>
