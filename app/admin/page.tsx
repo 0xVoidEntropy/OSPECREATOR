@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { ArrowLeft, Upload, Loader2, FolderOpen, ClipboardEdit } from 'lucide-react'
+import { ArrowLeft, Upload, Loader2, FolderOpen, ClipboardEdit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import nextDynamic from 'next/dynamic'
 
@@ -65,6 +65,12 @@ export default function AdminPage() {
   }, [supabase])
 
   useEffect(() => { loadAllLectures() }, [loadAllLectures])
+
+  const deleteLecture = async (id: string, title: string) => {
+    if (!confirm(`Delete "${title}" and all its questions? This can't be undone.`)) return
+    setAllLectures(prev => prev.filter(l => l.id !== id))
+    await supabase.from('lectures').delete().eq('id', id)
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -281,16 +287,23 @@ export default function AdminPage() {
           {!allLectures.length && <p className="text-slate-500 text-sm">No lectures uploaded yet.</p>}
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {allLectures.map(l => (
-              <Link key={l.id} href={`/admin/review/${l.id}`}
-                className="flex items-center justify-between bg-slate-700/40 hover:bg-slate-700/60 rounded-xl px-4 py-3 transition-colors">
-                <div>
-                  <p className="text-white text-sm font-medium">{l.title}</p>
+              <div key={l.id} className="flex items-center justify-between bg-slate-700/40 hover:bg-slate-700/60 rounded-xl px-4 py-3 transition-colors">
+                <Link href={`/admin/review/${l.id}`} className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium truncate">{l.title}</p>
                   <p className="text-slate-500 text-xs">
                     {l.questionCount} question(s) generated · {new Date(l.created_at).toLocaleDateString()}
                   </p>
+                </Link>
+                <div className="flex items-center gap-3 ml-3 shrink-0">
+                  <Link href={`/admin/review/${l.id}`} className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-xs">
+                    <ClipboardEdit className="w-3.5 h-3.5" /> Review
+                  </Link>
+                  <button onClick={() => deleteLecture(l.id, l.title)}
+                    className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs">
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
                 </div>
-                <span className="flex items-center gap-1 text-cyan-400 text-xs"><ClipboardEdit className="w-3.5 h-3.5" /> Review</span>
-              </Link>
+              </div>
             ))}
           </div>
         </div>
