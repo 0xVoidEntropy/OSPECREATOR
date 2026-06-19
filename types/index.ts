@@ -10,6 +10,13 @@ export interface Subject {
   display_order: number
 }
 
+export interface SubQuestion {
+  label: string
+  question: string
+  hint: string
+  answer: string
+}
+
 export interface Question {
   id: string
   subject_id: string
@@ -21,6 +28,8 @@ export interface Question {
   image_crop: { x: number; y: number; w: number; h: number } | null
   difficulty: 'easy' | 'medium' | 'hard'
   tags: string[]
+  sub_questions: SubQuestion[] | null
+  lecture_id: string | null
   created_at: string
   subjects?: Subject
 }

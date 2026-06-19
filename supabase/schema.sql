@@ -26,8 +26,13 @@ create table if not exists questions (
   difficulty text default 'medium' check (difficulty in ('easy','medium','hard')),
   tags text[] default '{}',
   image_crop jsonb,
+  sub_questions jsonb,
   created_at timestamptz default now()
 );
+
+-- Run manually if the table already exists on a deployed DB:
+-- alter table questions add column if not exists sub_questions jsonb;
+-- alter table questions add column if not exists lecture_id uuid references lectures(id) on delete cascade;
 
 -- User Progress
 create table if not exists user_progress (
@@ -52,6 +57,8 @@ create table if not exists lectures (
   uploaded_by uuid references auth.users(id),
   created_at timestamptz default now()
 );
+
+alter table questions add column if not exists lecture_id uuid references lectures(id) on delete cascade;
 
 -- RLS Policies
 alter table subjects enable row level security;

@@ -135,24 +135,32 @@ async function handler(request: Request) {
       })
     }
 
-    const toInsert = entity.qas
-      .filter(qa => qa.question && qa.answer)
-      .map(qa => ({
-        subject_id: subjectId,
-        station_number: 100 + stationCounter++,
-        question_text: `${entity.title}\n${qa.label}: ${qa.question}`.slice(0, 1000),
-        answer: qa.answer.slice(0, 3000),
-        hint: qa.hint.slice(0, 300),
-        difficulty: 'medium',
-        tags: [],
-        image_url: primaryImage,
-        image_crop: null,
-      }))
+    const validQas = entity.qas.filter(qa => qa.question && qa.answer)
+    if (!validQas.length) continue
 
-    if (toInsert.length) {
-      const { error: insertErr } = await admin.from('questions').insert(toInsert)
-      if (!insertErr) questionCount += toInsert.length
+    // All Q&A for one entity share a single station/card — the image (if any)
+    // is shown once, and each sub-question gets its own hint/answer reveal.
+    const row = {
+      subject_id: subjectId,
+      lecture_id: lectureId,
+      station_number: 100 + stationCounter++,
+      question_text: entity.title.slice(0, 1000),
+      answer: null,
+      hint: null,
+      difficulty: 'medium',
+      tags: [],
+      image_url: primaryImage,
+      image_crop: null,
+      sub_questions: validQas.map(qa => ({
+        label: qa.label,
+        question: qa.question.slice(0, 1000),
+        hint: qa.hint.slice(0, 300),
+        answer: qa.answer.slice(0, 3000),
+      })),
     }
+
+    const { error: insertErr } = await admin.from('questions').insert(row)
+    if (!insertErr) questionCount++
   }
 
   return NextResponse.json({ success: true, entities: entities.length, count: questionCount })

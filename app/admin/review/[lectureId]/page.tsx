@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2, Save, Trash2, Crop as CropIcon } from 'lucide-react
 import Link from 'next/link'
 
 interface Crop { x: number; y: number; w: number; h: number }
+interface SubQuestion { label: string; question: string; hint: string; answer: string }
 interface QuestionRow {
   id: string
   station_number: number | null
@@ -16,8 +17,26 @@ interface QuestionRow {
   image_url: string | null
   image_crop: Crop | null
   difficulty: string
+  sub_questions: SubQuestion[] | null
   dirty?: boolean
   saving?: boolean
+}
+
+function CroppedPreview({ imageUrl, crop }: { imageUrl: string; crop: Crop }) {
+  if (!crop.w || !crop.h) return null
+  return (
+    <div style={{ paddingBottom: `${(crop.h / crop.w) * 100}%`, position: 'relative', overflow: 'hidden' }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imageUrl} alt="" style={{
+        position: 'absolute',
+        width: `${100 / (crop.w / 100)}%`,
+        height: `${100 / (crop.h / 100)}%`,
+        left: `${-crop.x / crop.w * 100}%`,
+        top: `${-crop.y / crop.h * 100}%`,
+        maxWidth: 'none',
+      }} />
+    </div>
+  )
 }
 
 function CropEditor({ imageUrl, crop, onChange }: { imageUrl: string; crop: Crop | null; onChange: (c: Crop) => void }) {
@@ -57,21 +76,30 @@ function CropEditor({ imageUrl, crop, onChange }: { imageUrl: string; crop: Crop
   }
 
   return (
-    <div
-      ref={boxRef}
-      className="relative w-full max-w-md select-none cursor-crosshair border border-slate-700 rounded-lg overflow-hidden"
-      onMouseDown={handleDown}
-      onMouseMove={handleMove}
-      onMouseUp={handleUp}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={imageUrl} alt="slide" className="w-full block pointer-events-none" />
-      {draft && draft.w > 0 && (
-        <div
-          className="absolute border-2 border-cyan-400 bg-cyan-400/15"
-          style={{ left: `${draft.x}%`, top: `${draft.y}%`, width: `${draft.w}%`, height: `${draft.h}%` }}
-        />
-      )}
+    <div className="grid grid-cols-2 gap-3">
+      <div
+        ref={boxRef}
+        className="relative w-full select-none cursor-crosshair border border-slate-700 rounded-lg overflow-hidden"
+        onMouseDown={handleDown}
+        onMouseMove={handleMove}
+        onMouseUp={handleUp}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={imageUrl} alt="slide" className="w-full block pointer-events-none" />
+        {draft && draft.w > 0 && (
+          <div
+            className="absolute border-2 border-cyan-400 bg-cyan-400/15"
+            style={{ left: `${draft.x}%`, top: `${draft.y}%`, width: `${draft.w}%`, height: `${draft.h}%` }}
+          />
+        )}
+      </div>
+      <div className="rounded-lg overflow-hidden border border-slate-700 bg-slate-900 flex items-center justify-center">
+        {draft && draft.w > 0 ? (
+          <CroppedPreview imageUrl={imageUrl} crop={draft} />
+        ) : (
+          <span className="text-xs text-slate-500 p-3">Drag a box to preview crop live</span>
+        )}
+      </div>
     </div>
   )
 }
@@ -91,11 +119,10 @@ export default function ReviewLecturePage() {
     const { data: lecture } = await supabase.from('lectures').select('title').eq('id', params.lectureId).single()
     setLectureTitle(lecture?.title || 'Lecture')
 
-    const { data: pages } = await supabase.from('lecture_pages').select('image_url').eq('lecture_id', params.lectureId).not('image_url', 'is', null)
-    const urls = Array.from(new Set((pages || []).map(p => p.image_url).filter(Boolean)))
-    if (!urls.length) { setQuestions([]); setLoading(false); return }
-
-    const { data: qs } = await supabase.from('questions').select('id, station_number, question_text, answer, hint, image_url, image_crop, difficulty').in('image_url', urls).order('station_number')
+    const { data: qs } = await supabase.from('questions')
+      .select('id, station_number, question_text, answer, hint, image_url, image_crop, sub_questions, difficulty')
+      .eq('lecture_id', params.lectureId)
+      .order('station_number')
     setQuestions((qs || []) as QuestionRow[])
     setLoading(false)
   }, [supabase, params.lectureId])
@@ -110,11 +137,19 @@ export default function ReviewLecturePage() {
     setQuestions(prev => prev.map(q => q.id === id ? { ...q, image_crop: crop, dirty: true } : q))
   }
 
+  const updateSubQuestion = (id: string, idx: number, field: keyof SubQuestion, value: string) => {
+    setQuestions(prev => prev.map(q => {
+      if (q.id !== id || !q.sub_questions) return q
+      const sub_questions = q.sub_questions.map((sq, i) => i === idx ? { ...sq, [field]: value } : sq)
+      return { ...q, sub_questions, dirty: true }
+    }))
+  }
+
   const save = async (q: QuestionRow) => {
     setQuestions(prev => prev.map(p => p.id === q.id ? { ...p, saving: true } : p))
     const { error } = await supabase.from('questions').update({
       question_text: q.question_text, answer: q.answer, hint: q.hint,
-      difficulty: q.difficulty, image_crop: q.image_crop,
+      difficulty: q.difficulty, image_crop: q.image_crop, sub_questions: q.sub_questions,
     }).eq('id', q.id)
     setQuestions(prev => prev.map(p => p.id === q.id ? { ...p, saving: false, dirty: error ? p.dirty : false } : p))
   }
@@ -163,16 +198,7 @@ export default function ReviewLecturePage() {
                 ) : (
                   <div className="relative w-full max-w-md rounded-lg overflow-hidden border border-slate-700">
                     {q.image_crop ? (
-                      <div style={{ paddingBottom: `${(q.image_crop.h / q.image_crop.w) * 100}%`, position: 'relative', overflow: 'hidden' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={q.image_url} alt="" style={{
-                          position: 'absolute',
-                          width: `${100 / (q.image_crop.w / 100)}%`,
-                          height: `${100 / (q.image_crop.h / 100)}%`,
-                          left: `${-q.image_crop.x / q.image_crop.w * 100}%`,
-                          top: `${-q.image_crop.y / q.image_crop.h * 100}%`,
-                        }} />
-                      </div>
+                      <CroppedPreview imageUrl={q.image_url} crop={q.image_crop} />
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={q.image_url} alt="" className="w-full" />
@@ -196,11 +222,31 @@ export default function ReviewLecturePage() {
               <textarea value={q.answer || ''} onChange={e => updateField(q.id, 'answer', e.target.value)}
                 rows={4} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
             </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Hint</label>
-              <input value={q.hint || ''} onChange={e => updateField(q.id, 'hint', e.target.value)}
-                className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
-            </div>
+            {!q.sub_questions?.length && (
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Hint</label>
+                <input value={q.hint || ''} onChange={e => updateField(q.id, 'hint', e.target.value)}
+                  className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+              </div>
+            )}
+
+            {!!q.sub_questions?.length && (
+              <div className="space-y-3 pt-2 border-t border-slate-700/50">
+                <label className="block text-xs text-slate-500">Sub-questions ({q.sub_questions.length})</label>
+                {q.sub_questions.map((sq, idx) => (
+                  <div key={idx} className="border-l-2 border-slate-700 pl-3 space-y-2">
+                    <input value={sq.label} onChange={e => updateSubQuestion(q.id, idx, 'label', e.target.value)}
+                      placeholder="Label" className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-1.5 text-xs text-cyan-300" />
+                    <textarea value={sq.question} onChange={e => updateSubQuestion(q.id, idx, 'question', e.target.value)}
+                      placeholder="Question" rows={2} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+                    <input value={sq.hint} onChange={e => updateSubQuestion(q.id, idx, 'hint', e.target.value)}
+                      placeholder="Hint" className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+                    <textarea value={sq.answer} onChange={e => updateSubQuestion(q.id, idx, 'answer', e.target.value)}
+                      placeholder="Answer" rows={2} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>

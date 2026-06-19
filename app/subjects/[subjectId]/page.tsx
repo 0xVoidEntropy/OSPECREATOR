@@ -378,34 +378,98 @@ export default function SubjectPage() {
                   {/* Question text */}
                   <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-line mb-4">{q.question_text}</p>
 
-                  {/* Action buttons */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    {q.hint && (
-                      <button
-                        onClick={() => toggleState(q.id, 'showHint')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          state.showHint
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            : 'bg-slate-800 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
-                        }`}
-                      >
-                        <Lightbulb className="w-3.5 h-3.5" />
-                        {state.showHint ? 'Hide Hint' : 'Show Hint'}
-                      </button>
-                    )}
-                    {q.answer && (
-                      <button
-                        onClick={() => toggleState(q.id, 'showAnswer')}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          state.showAnswer
-                            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                            : 'bg-slate-800 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'
-                        }`}
-                      >
-                        {state.showAnswer ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        {state.showAnswer ? 'Hide Answer' : 'Reveal Answer'}
-                      </button>
-                    )}
+                  {q.sub_questions && q.sub_questions.length > 0 ? (
+                    <div className="space-y-4">
+                      {q.sub_questions.map((sq, idx) => {
+                        const subKey = `${q.id}::${idx}`
+                        const subState = questionStates.get(subKey) || { showAnswer: false, showHint: false, showAddImage: false }
+                        return (
+                          <div key={idx} className="border-l-2 border-slate-700 pl-3">
+                            <p className="text-slate-300 text-sm leading-relaxed mb-2">
+                              <span className="text-slate-500 font-medium">{sq.label}:</span> {sq.question}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {sq.hint && (
+                                <button
+                                  onClick={() => toggleState(subKey, 'showHint')}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                    subState.showHint
+                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                      : 'bg-slate-800 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
+                                  }`}
+                                >
+                                  <Lightbulb className="w-3.5 h-3.5" />
+                                  {subState.showHint ? 'Hide Hint' : 'Show Hint'}
+                                </button>
+                              )}
+                              {sq.answer && (
+                                <button
+                                  onClick={() => toggleState(subKey, 'showAnswer')}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                    subState.showAnswer
+                                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                                      : 'bg-slate-800 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'
+                                  }`}
+                                >
+                                  {subState.showAnswer ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                  {subState.showAnswer ? 'Hide Answer' : 'Reveal Answer'}
+                                </button>
+                              )}
+                            </div>
+                            {subState.showHint && sq.hint && (
+                              <div className="mt-2 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+                                  <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">Hint</span>
+                                </div>
+                                <p className="text-amber-100/80 text-sm leading-relaxed">{sq.hint}</p>
+                              </div>
+                            )}
+                            {subState.showAnswer && sq.answer && (
+                              <div className="mt-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl p-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <CheckCircle className="w-3.5 h-3.5 text-cyan-400" />
+                                  <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">Model Answer</span>
+                                </div>
+                                <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line">{sq.answer}</p>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {q.hint && (
+                        <button
+                          onClick={() => toggleState(q.id, 'showHint')}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            state.showHint
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              : 'bg-slate-800 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
+                          }`}
+                        >
+                          <Lightbulb className="w-3.5 h-3.5" />
+                          {state.showHint ? 'Hide Hint' : 'Show Hint'}
+                        </button>
+                      )}
+                      {q.answer && (
+                        <button
+                          onClick={() => toggleState(q.id, 'showAnswer')}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            state.showAnswer
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                              : 'bg-slate-800 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'
+                          }`}
+                        >
+                          {state.showAnswer ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          {state.showAnswer ? 'Hide Answer' : 'Reveal Answer'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-4">
                     <div className="ml-auto flex items-center gap-2">
                       <button
                         onClick={() => markAnswered(q.id, false)}
@@ -432,8 +496,8 @@ export default function SubjectPage() {
 
                 </div>
 
-                {/* Hint */}
-                {state.showHint && q.hint && (
+                {/* Hint (single-question stations only) */}
+                {!q.sub_questions && state.showHint && q.hint && (
                   <div className="px-5 pb-4 answer-reveal">
                     <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
@@ -445,8 +509,8 @@ export default function SubjectPage() {
                   </div>
                 )}
 
-                {/* Answer */}
-                {state.showAnswer && q.answer && (
+                {/* Answer (single-question stations only) */}
+                {!q.sub_questions && state.showAnswer && q.answer && (
                   <div className="px-5 pb-5 answer-reveal">
                     <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">

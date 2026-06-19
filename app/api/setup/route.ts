@@ -249,6 +249,14 @@ export async function GET(request: Request) {
     alter table questions add column if not exists image_crop jsonb;
   `)
 
+  await sql('Add sub_questions column if missing', `
+    alter table questions add column if not exists sub_questions jsonb;
+  `)
+
+  await sql('Add lecture_id column if missing', `
+    alter table questions add column if not exists lecture_id uuid references lectures(id) on delete cascade;
+  `)
+
   await sql('Add year/block/display_order columns to subjects', `
     alter table subjects add column if not exists year int;
     alter table subjects add column if not exists block text;

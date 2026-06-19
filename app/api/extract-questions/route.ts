@@ -192,6 +192,7 @@ Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. Be specific and 
             tags: Array.isArray(s.tags) ? s.tags.slice(0, 5) : [],
             image_url: page.image_url,
             image_crop: crop,
+            lecture_id: lectureId,
           })
         }
       } catch { /* skip slide */ }
@@ -225,6 +226,7 @@ Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. Be specific and 
         difficulty: 'medium',
         tags: extractTags(allText),
         image_url: page.image_url,
+        lecture_id: lectureId,
       })
       if (toInsert.length >= 20) break
     }

@@ -45,12 +45,20 @@ export default function AdminPage() {
   const [log, setLog] = useState<string[]>([])
   const [currentJob, setCurrentJob] = useState<ProcessingJob | null>(null)
   const [completedLectures, setCompletedLectures] = useState<{ id: string; fileName: string; count: number }[]>([])
+  const [allLectures, setAllLectures] = useState<{ id: string; title: string; created_at: string }[]>([])
   const logEndRef = useRef<HTMLDivElement>(null)
   const allFilesRef = useRef<FileWithSubject[]>([])
 
   const addLog = useCallback((msg: string) => setLog(prev => [...prev, msg]), [])
 
   useEffect(() => { logEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [log])
+
+  const loadAllLectures = useCallback(async () => {
+    const { data } = await supabase.from('lectures').select('id, title, created_at').order('created_at', { ascending: false })
+    if (data) setAllLectures(data)
+  }, [supabase])
+
+  useEffect(() => { loadAllLectures() }, [loadAllLectures])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -121,6 +129,7 @@ export default function AdminPage() {
         if (!res.ok) { addLog(`✗ Parse failed: ${data.error}`); processNext(rest); return }
         addLog(`✓ ${data.count} questions from "${next.file.name}" (${data.entities} entities)`)
         setCompletedLectures(prev => [...prev, { id: lec.id, fileName: next.file.name, count: data.count }])
+        loadAllLectures()
         processNext(rest)
         return
       }
@@ -149,8 +158,9 @@ export default function AdminPage() {
     }
     addLog(`✓ ${total} questions from "${fileName}"`)
     setCompletedLectures(prev => [...prev, { id: lectureId, fileName, count: total }])
+    loadAllLectures()
     processNext(remainingFiles)
-  }, [currentJob, addLog, processNext])
+  }, [currentJob, addLog, processNext, loadAllLectures])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -262,23 +272,27 @@ export default function AdminPage() {
           </div>
         )}
 
-        {completedLectures.length > 0 && (
-          <div className="bg-slate-800 border border-slate-700/40 rounded-2xl p-6">
-            <h2 className="font-semibold text-white mb-4">Uploaded — review &amp; polish</h2>
-            <div className="space-y-2">
-              {completedLectures.map(l => (
+        <div className="bg-slate-800 border border-slate-700/40 rounded-2xl p-6">
+          <h2 className="font-semibold text-white mb-4">All lectures — review &amp; polish anytime</h2>
+          {!allLectures.length && <p className="text-slate-500 text-sm">No lectures uploaded yet.</p>}
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {allLectures.map(l => {
+              const justDone = completedLectures.find(c => c.id === l.id)
+              return (
                 <Link key={l.id} href={`/admin/review/${l.id}`}
                   className="flex items-center justify-between bg-slate-700/40 hover:bg-slate-700/60 rounded-xl px-4 py-3 transition-colors">
                   <div>
-                    <p className="text-white text-sm font-medium">{l.fileName}</p>
-                    <p className="text-slate-500 text-xs">{l.count} question(s) generated</p>
+                    <p className="text-white text-sm font-medium">{l.title}</p>
+                    <p className="text-slate-500 text-xs">
+                      {justDone ? `${justDone.count} question(s) generated · ` : ''}{new Date(l.created_at).toLocaleDateString()}
+                    </p>
                   </div>
                   <span className="flex items-center gap-1 text-cyan-400 text-xs"><ClipboardEdit className="w-3.5 h-3.5" /> Review</span>
                 </Link>
-              ))}
-            </div>
+              )
+            })}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )
