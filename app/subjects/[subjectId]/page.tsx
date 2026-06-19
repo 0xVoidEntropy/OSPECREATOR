@@ -8,7 +8,7 @@ import { findBestImage } from '@/lib/matchImage'
 import CroppedImage from '@/components/CroppedImage'
 import {
   ArrowLeft, Lightbulb, Eye, EyeOff, CheckCircle, Clock,
-  BookOpen, FileText, ExternalLink, Loader2, ImageIcon, X, ZoomIn, Plus
+  BookOpen, FileText, ExternalLink, Loader2, ImageIcon, X, ZoomIn, Plus, RotateCcw
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -110,7 +110,24 @@ export default function SubjectPage() {
   }).filter(q => activeStation === null || q.station_number === activeStation)
 
   const stations = [...new Set(questions.map(q => q.station_number).filter(Boolean))] as number[]
-  const answered = [...progress.values()].filter(p => p.answered).length
+  // Display sequential 1..N station numbers regardless of the raw DB station_number values
+  // (which may be large/non-contiguous, e.g. 100, 101, 102...).
+  const stationDisplay = new Map<number, number>(stations.map((s, i) => [s, i + 1]))
+  // Only count progress for questions that belong to this subject — `progress` holds
+  // every question the user has ever answered across all subjects.
+  const answered = questions.filter(q => progress.get(q.id)?.answered).length
+
+  const deleteProgress = async () => {
+    if (!userId) return
+    if (!confirm('Reset all your progress for this subject and start again?')) return
+    const ids = questions.map(q => q.id)
+    if (ids.length) await supabase.from('user_progress').delete().eq('user_id', userId).in('question_id', ids)
+    setProgress(prev => {
+      const next = new Map(prev)
+      ids.forEach(id => next.delete(id))
+      return next
+    })
+  }
 
   if (loading) {
     return (
@@ -196,6 +213,14 @@ export default function SubjectPage() {
             <p className="text-slate-500 text-xs">{answered} / {questions.length} answered</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={deleteProgress}
+              className="flex items-center gap-2 bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-300 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
+              title="Reset progress for this subject"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span className="hidden sm:inline">Reset Progress</span>
+            </button>
             <Link
               href={`/simulation?subject=${subjectId}`}
               className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
@@ -271,7 +296,7 @@ export default function SubjectPage() {
                   activeStation === s ? 'bg-cyan-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
-                Station {s}
+                Station {stationDisplay.get(s)}
               </button>
             ))}
           </div>
@@ -318,7 +343,7 @@ export default function SubjectPage() {
                   <div className="flex items-center gap-2 mb-3 flex-wrap">
                     {q.station_number && (
                       <span className={`text-xs px-2 py-0.5 rounded-lg font-medium ${colors.badge}`}>
-                        Station {q.station_number}
+                        Station {stationDisplay.get(q.station_number) ?? q.station_number}
                       </span>
                     )}
                     <span className={`text-xs px-2 py-0.5 rounded-lg font-medium ${
