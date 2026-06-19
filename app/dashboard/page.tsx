@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Subject } from '@/types'
 import { ADMIN_EMAIL } from '@/lib/admin'
-import { BookOpen, LogOut, Clock, Trophy, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, ArrowLeft } from 'lucide-react'
+import { BookOpen, LogOut, Clock, Trophy, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, ArrowLeft, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 
 interface SubjectStats extends Subject {
@@ -249,9 +249,9 @@ export default function Dashboard() {
           </div>
           <button
             onClick={handleResetAllProgress}
-            className="mt-3 text-xs text-slate-500 hover:text-red-400 transition-colors"
+            className="mt-4 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-red-500/15 hover:text-red-300 transition-colors"
           >
-            Reset all progress
+            <RotateCcw className="w-3.5 h-3.5" /> Reset all progress
           </button>
         </div>
 
