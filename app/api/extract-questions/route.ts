@@ -60,20 +60,29 @@ async function handler(request: Request) {
     const isGeminiOAuth = !useOpenRouter && (geminiKey?.startsWith('AQ.') || geminiKey?.startsWith('ya29.'))
 
     const prompt = (subjectName: string) =>
-      `You are a medical OSPE examiner. Analyze this ${subjectName} lecture slide image.
+      `You are a medical OSPE examiner and pathology/histology instructor. Analyze this ${subjectName} lecture slide image, which may contain ONE OR MORE specimen photos/micrographs (gross or histology), each possibly with arrows, arrowheads, circles, or labels pointing at findings.
 
-OUTPUT "SKIP" (nothing else) if the slide is ANY of these:
-- Title, objectives, contents, references, summary, introduction
-- Pure text with no visible specimen, tissue, or microscopy image
-- Diagram or illustration only (no actual histology/pathology photo)
-- Blank or near-blank slide
+OUTPUT "SKIP" (nothing else) if the slide has NO actual specimen/histology/gross-pathology photo (title, objectives, contents, references, pure text, diagram-only, blank).
 
-OUTPUT raw JSON (no markdown) only if the slide contains an ACTUAL specimen image (histology, gross pathology, microscopy, biopsy photo):
-{"question":"Station — [topic]\\n1. [clinical question]\\n2. [morphology question]\\n3. [diagnosis question]","answer":"1. [answer]\\n2. [answer]\\n3. [answer]","hint":"[key teaching point]","difficulty":"easy","tags":["tag1","tag2"],"crop":{"x":0,"y":0,"w":100,"h":100}}
+Otherwise OUTPUT raw JSON only (no markdown), as an array — one entry per DISTINCT specimen image on the slide (usually 1, sometimes 2-4):
+[
+  {
+    "identification": "what the specimen/structure is (organ, tissue, etc.)",
+    "gross_description": "gross/macroscopic appearance — color, shape, size cues (empty string if this is a microscopic image instead)",
+    "microscopic_description": "microscopic/histologic findings — cells, staining, architecture (empty string if this is a gross specimen photo instead)",
+    "diagnosis": "the most likely disease/diagnosis this image illustrates",
+    "arrows": "if there are arrows/arrowheads/circles/labels, describe each one, its color if relevant, and what it points to. Empty string if none.",
+    "question": "Station — [topic]\\n1. [identify question]\\n2. [morphology question]\\n3. [diagnosis question]",
+    "hint": "[key teaching point, without giving away the diagnosis]",
+    "difficulty": "easy",
+    "tags": ["tag1","tag2"],
+    "crop": {"x":0,"y":0,"w":100,"h":100}
+  }
+]
 
-"crop" = bounding box of the specimen photo only (not slide title/text), as % of slide dimensions. Example if photo is bottom half: {"x":0,"y":50,"w":100,"h":50}.
+"crop" = tight bounding box of THIS specimen photo only (not slide title/text, not other specimens on the same slide), as % of full slide dimensions.
 
-Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before or after the JSON.`
+Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. Be specific and use correct medical terminology; if uncertain about the diagnosis, say so rather than guessing confidently. No text before or after the JSON array.`
 
     for (const page of slidesToProcess) {
       try {
@@ -144,27 +153,47 @@ Rules: difficulty = easy/medium/hard. Tags = 2-5 medical terms. No text before o
         // Strip markdown code fences if model wrapped in ```json ... ```
         raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
 
-        // Extract first complete JSON object
-        const jsonMatch = raw.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) continue
+        // Extract a JSON array (preferred, multi-specimen) or fall back to a single object
+        const arrayMatch = raw.match(/\[[\s\S]*\]/)
+        const objectMatch = raw.match(/\{[\s\S]*\}/)
+        let specimens: Record<string, unknown>[] = []
+        try {
+          if (arrayMatch) specimens = JSON.parse(arrayMatch[0])
+          else if (objectMatch) specimens = [JSON.parse(objectMatch[0])]
+        } catch { continue }
+        if (!Array.isArray(specimens) || !specimens.length) continue
 
-        let parsed: Record<string, unknown>
-        try { parsed = JSON.parse(jsonMatch[0]) } catch { continue }
-        if (!parsed.question || !parsed.answer || parsed.skip) continue
+        for (const raw_s of specimens) {
+          const s = raw_s as {
+            question?: string; identification?: string; gross_description?: string
+            microscopic_description?: string; diagnosis?: string; arrows?: string
+            hint?: string; difficulty?: string; tags?: string[]
+            crop?: { x: number; y: number; w: number; h: number }
+          }
+          if (!s || (!s.question && !s.identification && !s.diagnosis)) continue
 
-        const q = parsed as { question: string; answer: string; hint?: string; difficulty?: string; tags?: string[]; crop?: { x: number; y: number; w: number; h: number } }
-        const crop = q.crop && typeof q.crop.x === 'number' ? q.crop : null
-        toInsert.push({
-          subject_id: subjectId,
-          station_number: 100 + toInsert.length,
-          question_text: String(q.question).slice(0, 1000),
-          answer: String(q.answer).slice(0, 2000),
-          hint: String(q.hint || '').slice(0, 300),
-          difficulty: ['easy','medium','hard'].includes(q.difficulty ?? '') ? q.difficulty : 'medium',
-          tags: Array.isArray(q.tags) ? q.tags.slice(0, 5) : [],
-          image_url: page.image_url,
-          image_crop: crop,
-        })
+          const rows: string[] = []
+          if (s.identification) rows.push(`<b>Identification:</b> ${s.identification}`)
+          if (s.gross_description) rows.push(`<b>Gross:</b> ${s.gross_description}`)
+          if (s.microscopic_description) rows.push(`<b>Microscopic:</b> ${s.microscopic_description}`)
+          if (s.diagnosis) rows.push(`<b>Diagnosis:</b> ${s.diagnosis}`)
+          if (s.arrows) rows.push(`<b>Arrows/markers:</b> ${s.arrows}`)
+          const answer = rows.join('<br><br>') || s.diagnosis || s.identification || ''
+          if (!answer) continue
+
+          const crop = s.crop && typeof s.crop.x === 'number' ? s.crop : null
+          toInsert.push({
+            subject_id: subjectId,
+            station_number: 100 + toInsert.length,
+            question_text: String(s.question || `Identify this specimen and state the diagnosis.`).slice(0, 1000),
+            answer: answer.slice(0, 3000),
+            hint: String(s.hint || '').slice(0, 300),
+            difficulty: ['easy','medium','hard'].includes(s.difficulty ?? '') ? s.difficulty : 'medium',
+            tags: Array.isArray(s.tags) ? s.tags.slice(0, 5) : [],
+            image_url: page.image_url,
+            image_crop: crop,
+          })
+        }
       } catch { /* skip slide */ }
 
       await new Promise(r => setTimeout(r, 200))

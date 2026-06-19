@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { ArrowLeft, Upload, Loader2, FolderOpen } from 'lucide-react'
+import { ArrowLeft, Upload, Loader2, FolderOpen, ClipboardEdit } from 'lucide-react'
 import Link from 'next/link'
 import nextDynamic from 'next/dynamic'
 
@@ -44,6 +44,7 @@ export default function AdminPage() {
   const [processing, setProcessing] = useState(false)
   const [log, setLog] = useState<string[]>([])
   const [currentJob, setCurrentJob] = useState<ProcessingJob | null>(null)
+  const [completedLectures, setCompletedLectures] = useState<{ id: string; fileName: string; count: number }[]>([])
   const logEndRef = useRef<HTMLDivElement>(null)
   const allFilesRef = useRef<FileWithSubject[]>([])
 
@@ -127,6 +128,7 @@ export default function AdminPage() {
       nextIndex = data.nextIndex || 0
     }
     addLog(`✓ ${total} questions from "${fileName}"`)
+    setCompletedLectures(prev => [...prev, { id: lectureId, fileName, count: total }])
     processNext(remainingFiles)
   }, [currentJob, addLog, processNext])
 
@@ -236,6 +238,24 @@ export default function AdminPage() {
                 <p key={i} className={l.startsWith('✓') ? 'text-emerald-400' : l.startsWith('✗') ? 'text-red-400' : 'text-slate-400'}>{l}</p>
               ))}
               <div ref={logEndRef} />
+            </div>
+          </div>
+        )}
+
+        {completedLectures.length > 0 && (
+          <div className="bg-slate-800 border border-slate-700/40 rounded-2xl p-6">
+            <h2 className="font-semibold text-white mb-4">Uploaded — review &amp; polish</h2>
+            <div className="space-y-2">
+              {completedLectures.map(l => (
+                <Link key={l.id} href={`/admin/review/${l.id}`}
+                  className="flex items-center justify-between bg-slate-700/40 hover:bg-slate-700/60 rounded-xl px-4 py-3 transition-colors">
+                  <div>
+                    <p className="text-white text-sm font-medium">{l.fileName}</p>
+                    <p className="text-slate-500 text-xs">{l.count} question(s) generated</p>
+                  </div>
+                  <span className="flex items-center gap-1 text-cyan-400 text-xs"><ClipboardEdit className="w-3.5 h-3.5" /> Review</span>
+                </Link>
+              ))}
             </div>
           </div>
         )}

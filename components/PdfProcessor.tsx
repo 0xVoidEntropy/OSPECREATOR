@@ -10,91 +10,20 @@ interface Props {
   onError: (err: string) => void
 }
 
-// Analyse canvas pixels to find the actual image region
-// Returns null if the slide is text-only (should be skipped)
-function analyseSlide(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): {
-  isImageSlide: boolean
-  cropTop: number
-  cropHeight: number
-} {
-  const w = canvas.width
-  const h = canvas.height
-
-  // Sample every 3rd pixel for speed
-  const imageData = ctx.getImageData(0, 0, w, h)
-  const data = imageData.data
-
-  // Count non-white pixels per row (sample every 3 pixels horizontally)
-  const rowNonWhite = new Float32Array(h)
-  for (let y = 0; y < h; y++) {
-    let count = 0
-    for (let x = 0; x < w; x += 3) {
-      const i = (y * w + x) * 4
-      const r = data[i], g = data[i + 1], b = data[i + 2]
-      // Anything that's not near-white
-      if (r < 230 || g < 230 || b < 230) count++
-    }
-    rowNonWhite[y] = count / (w / 3)
-  }
-
-  // A row "has image content" if >12% of sampled pixels are non-white
-  const imageThreshold = 0.12
-
-  // Identify image regions: look for blocks of consecutive image rows
-  // Text rows: thin (1-3px) bands with <40% non-white
-  // Image rows: thick blocks with varied color
-  const isImageRow = (y: number) => rowNonWhite[y] > imageThreshold
-
-  // Count total non-white pixels to detect text-only slides
-  let totalNonWhite = 0
-  for (let y = 0; y < h; y++) totalNonWhite += rowNonWhite[y]
-  const avgNonWhite = totalNonWhite / h
-
-  // Text-only slide: very sparse non-white content overall
-  if (avgNonWhite < 0.04) {
-    return { isImageSlide: false, cropTop: 0, cropHeight: h }
-  }
-
-  // Find the largest contiguous image block (block of rows all having image content)
-  // This is where the specimen image is
-  let bestStart = 0, bestEnd = h, bestLen = 0
-  let runStart = -1
-
-  for (let y = 0; y < h; y++) {
-    if (isImageRow(y)) {
-      if (runStart === -1) runStart = y
-    } else {
-      if (runStart !== -1) {
-        const len = y - runStart
-        if (len > bestLen) {
-          bestLen = len
-          bestStart = runStart
-          bestEnd = y
-        }
-        runStart = -1
-      }
-    }
-  }
-  if (runStart !== -1 && h - runStart > bestLen) {
-    bestStart = runStart
-    bestEnd = h
-    bestLen = h - runStart
-  }
-
-  // If the best image block is too small, it's likely text only
-  if (bestLen < h * 0.12) {
-    return { isImageSlide: false, cropTop: 0, cropHeight: h }
-  }
-
-  // Add small padding
-  const pad = Math.floor(h * 0.02)
-  const cropTop = Math.max(0, bestStart - pad)
-  const cropBottom = Math.min(h, bestEnd + pad)
-
-  return {
-    isImageSlide: true,
-    cropTop,
-    cropHeight: cropBottom - cropTop,
+// Detect whether a rendered page has ANY embedded raster image XObject.
+// Pages with zero images are pure text/title slides and are skipped —
+// everything else is uploaded full-page, uncropped, and left to the
+// vision model (which can see arrows/multiple specimens) to box each
+// specimen individually via per-question image_crop.
+async function pageHasImage(page: import('pdfjs-dist').PDFPageProxy): Promise<boolean> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const opList = await page.getOperatorList() as any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const OPS = (await import('pdfjs-dist')).OPS as any
+    return opList.fnArray.some((fn: number) => fn === OPS.paintImageXObject || fn === OPS.paintInlineImageXObject || fn === OPS.paintImageMaskXObject)
+  } catch {
+    return true // fail open — let the AI decide rather than silently dropping a slide
   }
 }
 
@@ -143,8 +72,8 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await page.render({ canvasContext: ctx as any, viewport } as any).promise
 
-          // Pixel analysis: skip text-only slides, find image region
-          const { isImageSlide, cropTop, cropHeight } = analyseSlide(canvas, ctx)
+          // Skip slides with no embedded image at all (title/text/contents slides)
+          const hasImage = await pageHasImage(page)
 
           // Extract text regardless (needed for Q&A generation)
           let textContent = ''
@@ -163,38 +92,44 @@ export default function PdfProcessor({ lectureId, subjectId, fileUrl, onComplete
 
           setStatus(`Saving slide ${pageNum} of ${numPages}...`)
 
-          // Use smart crop if image region detected, otherwise crop fixed 10%-78%
-          const finalCropTop = isImageSlide ? cropTop : Math.floor(canvas.height * 0.10)
-          const finalCropHeight = isImageSlide ? cropHeight : Math.floor(canvas.height * 0.68)
+          if (hasImage) {
+            // Upload the full, uncropped rendered page — arrows/labels/multiple
+            // specimens are all preserved. Cropping to an individual specimen
+            // happens later, per-question, via image_crop (set by AI or edited
+            // live in the admin review screen) and applied at display time.
+            const blob = await new Promise<Blob>((resolve, reject) => {
+              canvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.9)
+            })
 
-          const cropCanvas = document.createElement('canvas')
-          cropCanvas.width = canvas.width
-          cropCanvas.height = finalCropHeight
-          const cropCtx = cropCanvas.getContext('2d')!
-          cropCtx.drawImage(canvas, 0, finalCropTop, canvas.width, finalCropHeight, 0, 0, canvas.width, finalCropHeight)
+            const path = `${lectureId}/page-${pageNum}.jpg`
+            const { error: uploadErr } = await supabase.storage
+              .from('slide-images')
+              .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
 
-          const blob = await new Promise<Blob>((resolve, reject) => {
-            cropCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')), 'image/jpeg', 0.88)
-          })
+            if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`)
 
-          const path = `${lectureId}/page-${pageNum}.jpg`
-          const { error: uploadErr } = await supabase.storage
-            .from('slide-images')
-            .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+            const { data: { publicUrl } } = supabase.storage.from('slide-images').getPublicUrl(path)
 
-          if (uploadErr) throw new Error(`Upload failed: ${uploadErr.message}`)
+            await supabase.from('lecture_pages').insert({
+              lecture_id: lectureId,
+              subject_id: subjectId,
+              page_number: pageNum,
+              image_url: publicUrl,
+              text_content: textContent,
+            })
+            stored++
+          } else {
+            // Text-only slide: keep the text for context but no image_url,
+            // so extract-questions naturally skips it (filters on !!image_url).
+            await supabase.from('lecture_pages').insert({
+              lecture_id: lectureId,
+              subject_id: subjectId,
+              page_number: pageNum,
+              image_url: null,
+              text_content: textContent,
+            })
+          }
 
-          const { data: { publicUrl } } = supabase.storage.from('slide-images').getPublicUrl(path)
-
-          await supabase.from('lecture_pages').insert({
-            lecture_id: lectureId,
-            subject_id: subjectId,
-            page_number: pageNum,
-            image_url: publicUrl,
-            text_content: textContent,
-          })
-
-          stored++
           processed++
           setProgress(processed)
         }
