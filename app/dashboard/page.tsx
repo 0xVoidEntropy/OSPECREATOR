@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Subject } from '@/types'
 import { ADMIN_EMAIL } from '@/lib/admin'
-import { BookOpen, LogOut, Clock, Trophy, Target, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, ArrowLeft, Trash2 } from 'lucide-react'
+import { BookOpen, LogOut, Clock, Trophy, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, ArrowLeft, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface SubjectStats extends Subject {
@@ -198,30 +198,29 @@ export default function Dashboard() {
         </div>
 
         {/* Overall stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-8">
           {[
             { label: 'Total Questions', value: totalStats.total, icon: BookOpen, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
             { label: 'Answered', value: totalStats.answered, icon: Trophy, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Progress', value: `${overallPercent}%`, icon: TrendingUp, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-            { label: 'Subjects', value: subjects.length, icon: Target, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-          ].map(s => {
-            const isSubjectsCard = s.label === 'Subjects'
-            const Card = isSubjectsCard && user?.email === ADMIN_EMAIL ? 'button' : 'div'
-            return (
-              <Card
-                key={s.label}
-                onClick={isSubjectsCard ? () => setShowManage(v => !v) : undefined}
-                className={`bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4 text-left ${isSubjectsCard && user?.email === ADMIN_EMAIL ? 'hover:border-amber-500/40 transition-colors cursor-pointer' : ''}`}
-              >
-                <div className={`w-9 h-9 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
-                  <s.icon className={`w-4 h-4 ${s.color}`} />
-                </div>
-                <p className="text-2xl font-bold text-white">{s.value}</p>
-                <p className="text-slate-500 text-xs mt-0.5">{s.label}{isSubjectsCard && user?.email === ADMIN_EMAIL ? ' · manage' : ''}</p>
-              </Card>
-            )
-          })}
+          ].map(s => (
+            <div key={s.label} className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4">
+              <div className={`w-9 h-9 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
+                <s.icon className={`w-4 h-4 ${s.color}`} />
+              </div>
+              <p className="text-2xl font-bold text-white">{s.value}</p>
+              <p className="text-slate-500 text-xs mt-0.5">{s.label}</p>
+            </div>
+          ))}
         </div>
+
+        {user?.email === ADMIN_EMAIL && (
+          <div className="flex justify-end mb-2 -mt-6">
+            <button onClick={() => setShowManage(v => !v)} className="text-xs text-amber-400 hover:text-amber-300">
+              {showManage ? 'Hide subject manager' : 'Manage subjects'}
+            </button>
+          </div>
+        )}
 
         {/* Admin: flat subject manager — delete any subject without drilling into folders */}
         {showManage && user?.email === ADMIN_EMAIL && (
