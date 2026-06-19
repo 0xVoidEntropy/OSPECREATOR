@@ -175,7 +175,7 @@ export default function ReviewLecturePage() {
     setQuestions(prev => prev.map(q => q.id === id ? { ...q, [field]: value, dirty: true } : q))
   }
 
-  const updateCrop = (id: string, crop: Crop) => {
+  const updateCrop = (id: string, crop: Crop | null) => {
     setQuestions(prev => prev.map(q => q.id === id ? { ...q, image_crop: crop, dirty: true } : q))
   }
 
@@ -247,10 +247,18 @@ export default function ReviewLecturePage() {
                     )}
                   </div>
                 )}
-                <button onClick={() => setCropEditingId(cropEditingId === q.id ? null : q.id)}
-                  className="flex items-center gap-1 text-xs text-slate-400 hover:text-cyan-400">
-                  <CropIcon className="w-3 h-3" /> {cropEditingId === q.id ? 'Done cropping' : 'Adjust crop'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setCropEditingId(cropEditingId === q.id ? null : q.id)}
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-cyan-400">
+                    <CropIcon className="w-3 h-3" /> {cropEditingId === q.id ? 'Done cropping' : 'Adjust crop'}
+                  </button>
+                  {q.image_crop && (
+                    <button onClick={() => updateCrop(q.id, null)}
+                      className="text-xs text-slate-500 hover:text-red-400">
+                      Clear crop
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
