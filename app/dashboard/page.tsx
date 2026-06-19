@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Subject } from '@/types'
+import { ADMIN_EMAIL } from '@/lib/admin'
 import { BookOpen, LogOut, Clock, Trophy, Target, Upload, ChevronRight, Microscope, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
 
@@ -191,21 +192,23 @@ export default function Dashboard() {
             </div>
           </Link>
 
-          <Link
-            href="/admin"
-            className="group bg-gradient-to-r from-violet-500/20 to-purple-600/20 border border-violet-500/30 hover:border-violet-400/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-violet-500/10"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-violet-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Upload className="w-6 h-6 text-violet-400" />
+          {user?.email === ADMIN_EMAIL && (
+            <Link
+              href="/admin"
+              className="group bg-gradient-to-r from-violet-500/20 to-purple-600/20 border border-violet-500/30 hover:border-violet-400/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-violet-500/10"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-violet-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Upload className="w-6 h-6 text-violet-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white">Admin Import</h3>
+                  <p className="text-slate-400 text-sm">Bulk upload curriculum PDFs</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-500 ml-auto group-hover:translate-x-1 transition-transform" />
               </div>
-              <div>
-                <h3 className="font-bold text-white">Admin Import</h3>
-                <p className="text-slate-400 text-sm">Bulk upload curriculum PDFs</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-slate-500 ml-auto group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
+            </Link>
+          )}
         </div>
 
         {/* Subjects grouped by Year and Block */}

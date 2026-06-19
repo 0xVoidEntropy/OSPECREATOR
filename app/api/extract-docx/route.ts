@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import * as mammoth from 'mammoth'
 import * as cheerio from 'cheerio'
+import { verifyAdmin } from '@/lib/verifyAdmin'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -85,6 +86,8 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 async function handler(request: Request) {
+  if (!(await verifyAdmin(request))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceKey) return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY not configured' }, { status: 500 })
 

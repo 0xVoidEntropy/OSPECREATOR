@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { ADMIN_EMAIL } from '@/lib/admin'
 import { ArrowLeft, Loader2, Save, Trash2, Crop as CropIcon } from 'lucide-react'
 import Link from 'next/link'
 
@@ -116,6 +117,10 @@ export default function ReviewLecturePage() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { router.replace('/auth'); return }
+    if (session.user.email !== ADMIN_EMAIL) { router.replace('/dashboard'); return }
+
     const { data: lecture } = await supabase.from('lectures').select('title').eq('id', params.lectureId).single()
     setLectureTitle(lecture?.title || 'Lecture')
 
@@ -125,7 +130,7 @@ export default function ReviewLecturePage() {
       .order('station_number')
     setQuestions((qs || []) as QuestionRow[])
     setLoading(false)
-  }, [supabase, params.lectureId])
+  }, [supabase, params.lectureId, router])
 
   useEffect(() => { load() }, [load])
 

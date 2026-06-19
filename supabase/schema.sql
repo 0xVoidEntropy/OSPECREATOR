@@ -61,25 +61,47 @@ create table if not exists lectures (
 alter table questions add column if not exists lecture_id uuid references lectures(id) on delete cascade;
 
 -- RLS Policies
+-- Course content (subjects/questions/lectures/lecture_pages) is readable by everyone,
+-- but only the single admin account may create/edit/delete it. Progress stays per-user.
 alter table subjects enable row level security;
 alter table questions enable row level security;
 alter table user_progress enable row level security;
 alter table lectures enable row level security;
+alter table lecture_pages enable row level security;
 
 drop policy if exists "subjects_public_read" on subjects;
+drop policy if exists "subjects_admin_write" on subjects;
 drop policy if exists "questions_public_read" on questions;
 drop policy if exists "questions_auth_update" on questions;
+drop policy if exists "questions_admin_write" on questions;
 drop policy if exists "lectures_public_read" on lectures;
 drop policy if exists "lectures_auth_insert" on lectures;
+drop policy if exists "lectures_admin_write" on lectures;
+drop policy if exists "lecture_pages_public_read" on lecture_pages;
+drop policy if exists "lecture_pages_admin_write" on lecture_pages;
 drop policy if exists "progress_user_select" on user_progress;
 drop policy if exists "progress_user_insert" on user_progress;
 drop policy if exists "progress_user_update" on user_progress;
 
 create policy "subjects_public_read" on subjects for select using (true);
+create policy "subjects_admin_write" on subjects for all
+  using (auth.jwt() ->> 'email' = '0xvoidentropy@gmail.com')
+  with check (auth.jwt() ->> 'email' = '0xvoidentropy@gmail.com');
+
 create policy "questions_public_read" on questions for select using (true);
-create policy "questions_auth_update" on questions for update using (auth.uid() is not null);
+create policy "questions_admin_write" on questions for all
+  using (auth.jwt() ->> 'email' = '0xvoidentropy@gmail.com')
+  with check (auth.jwt() ->> 'email' = '0xvoidentropy@gmail.com');
+
 create policy "lectures_public_read" on lectures for select using (true);
-create policy "lectures_auth_insert" on lectures for insert with check (auth.uid() = uploaded_by);
+create policy "lectures_admin_write" on lectures for all
+  using (auth.jwt() ->> 'email' = '0xvoidentropy@gmail.com')
+  with check (auth.jwt() ->> 'email' = '0xvoidentropy@gmail.com');
+
+create policy "lecture_pages_public_read" on lecture_pages for select using (true);
+create policy "lecture_pages_admin_write" on lecture_pages for all
+  using (auth.jwt() ->> 'email' = '0xvoidentropy@gmail.com')
+  with check (auth.jwt() ->> 'email' = '0xvoidentropy@gmail.com');
 
 create policy "progress_user_select" on user_progress for select using (auth.uid() = user_id);
 create policy "progress_user_insert" on user_progress for insert with check (auth.uid() = user_id);

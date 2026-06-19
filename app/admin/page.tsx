@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
+import { ADMIN_EMAIL } from '@/lib/admin'
 import { ArrowLeft, Upload, Loader2, FolderOpen, ClipboardEdit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import nextDynamic from 'next/dynamic'
@@ -37,6 +38,7 @@ export default function AdminPage() {
   const supabase = createClient()
 
   const [userId, setUserId] = useState<string | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [year, setYear] = useState<number>(3)
   const [block, setBlock] = useState('')
@@ -75,7 +77,9 @@ export default function AdminPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) { router.replace('/auth'); return }
+      if (session.user.email !== ADMIN_EMAIL) { router.replace('/dashboard'); return }
       setUserId(session.user.id)
+      setAccessToken(session.access_token)
       setLoading(false)
     })
   }, [router, supabase])
@@ -136,7 +140,11 @@ export default function AdminPage() {
         fd.append('file', next.file)
         fd.append('lectureId', lec.id)
         fd.append('subjectId', subjectId)
-        const res = await fetch('/api/extract-docx', { method: 'POST', body: fd })
+        const res = await fetch('/api/extract-docx', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}` },
+          body: fd,
+        })
         const data = await res.json()
         if (!res.ok) { addLog(`✗ Parse failed: ${data.error}`); processNext(rest); return }
         addLog(`✓ ${data.count} questions from "${next.file.name}" (${data.entities} entities)`)
@@ -148,7 +156,7 @@ export default function AdminPage() {
       addLog(`Extracting slides from "${next.file.name}"…`)
       setCurrentJob({ lectureId: lec.id, subjectId, fileUrl: publicUrl, fileName: next.file.name, remainingFiles: rest })
     } catch (err) { addLog(`✗ ${String(err)}`); processNext(rest) }
-  }, [supabase, userId, year, block, addLog]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [supabase, userId, accessToken, year, block, addLog]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSlidesComplete = useCallback(async () => {
     if (!currentJob) return
@@ -158,7 +166,8 @@ export default function AdminPage() {
     let total = 0, nextIndex = 0, hasMore = true
     while (hasMore) {
       const res = await fetch('/api/extract-questions', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
         body: JSON.stringify({ lectureId, subjectId, startIndex: nextIndex, batchSize: 1 }),
       })
       const data = await res.json()
@@ -170,7 +179,7 @@ export default function AdminPage() {
     addLog(`✓ ${total} questions from "${fileName}"`)
     loadAllLectures()
     processNext(remainingFiles)
-  }, [currentJob, addLog, processNext, loadAllLectures])
+  }, [currentJob, accessToken, addLog, processNext, loadAllLectures])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
