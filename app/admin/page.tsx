@@ -61,7 +61,7 @@ export default function AdminPage() {
   }, [router, supabase])
 
   const handleFolderSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawFiles = Array.from(e.target.files || []).filter(f => f.name.endsWith('.pdf'))
+    const rawFiles = Array.from(e.target.files || []).filter(f => /\.(pdf|docx)$/i.test(f.name))
     const grouped: Record<string, string[]> = {}
     const withSubject: FileWithSubject[] = rawFiles.map((f, i) => {
       const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
@@ -94,17 +94,37 @@ export default function AdminPage() {
       return
     }
     const [next, ...rest] = remaining
+    const isDocx = next.file.name.toLowerCase().endsWith('.docx')
     addLog(`[${next.index + 1}] Uploading "${next.file.name}" (${next.subject})…`)
     const path = `lectures/${Date.now()}-${next.file.name}`
-    const { error: upErr } = await supabase.storage.from('lectures').upload(path, next.file, { contentType: 'application/pdf', upsert: true })
+    const { error: upErr } = await supabase.storage.from('lectures').upload(path, next.file, {
+      contentType: isDocx ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf',
+      upsert: true,
+    })
     if (upErr) { addLog(`✗ Upload failed: ${upErr.message}`); processNext(rest); return }
     const { data: { publicUrl } } = supabase.storage.from('lectures').getPublicUrl(path)
     try {
       const subjectId = await getOrCreateSubject(next.subject, year, block)
       const { data: lec, error: lecErr } = await supabase.from('lectures').insert({
-        subject_id: subjectId, title: next.file.name.replace(/\.pdf$/i, ''), file_url: publicUrl, uploaded_by: userId,
+        subject_id: subjectId, title: next.file.name.replace(/\.(pdf|docx)$/i, ''), file_url: publicUrl, uploaded_by: userId,
       }).select().single()
       if (lecErr || !lec) { addLog(`✗ Record error: ${lecErr?.message}`); processNext(rest); return }
+
+      if (isDocx) {
+        addLog(`Parsing Q&A and images from "${next.file.name}"…`)
+        const fd = new FormData()
+        fd.append('file', next.file)
+        fd.append('lectureId', lec.id)
+        fd.append('subjectId', subjectId)
+        const res = await fetch('/api/extract-docx', { method: 'POST', body: fd })
+        const data = await res.json()
+        if (!res.ok) { addLog(`✗ Parse failed: ${data.error}`); processNext(rest); return }
+        addLog(`✓ ${data.count} questions from "${next.file.name}" (${data.entities} entities)`)
+        setCompletedLectures(prev => [...prev, { id: lec.id, fileName: next.file.name, count: data.count }])
+        processNext(rest)
+        return
+      }
+
       addLog(`Extracting slides from "${next.file.name}"…`)
       setCurrentJob({ lectureId: lec.id, subjectId, fileUrl: publicUrl, fileName: next.file.name, remainingFiles: rest })
     } catch (err) { addLog(`✗ ${String(err)}`); processNext(rest) }
@@ -181,12 +201,12 @@ export default function AdminPage() {
               className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${Object.keys(preview).length ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-slate-600/50 hover:border-slate-500/50'} ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
               onClick={() => !processing && document.getElementById('folder-input')?.click()}
             >
-              <input id="folder-input" type="file" accept=".pdf"
+              <input id="folder-input" type="file" accept=".pdf,.docx"
                 {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
                 multiple onChange={handleFolderSelect} className="hidden" disabled={processing} />
               <FolderOpen className="w-10 h-10 text-slate-500 mx-auto mb-2" />
               <p className="text-slate-400 text-sm">Click to select a block folder</p>
-              <p className="text-slate-600 text-xs mt-1">Subjects detected automatically from subfolders</p>
+              <p className="text-slate-600 text-xs mt-1">PDFs and .docx Q&amp;A labs both supported — subjects detected automatically from subfolders</p>
             </div>
 
             {Object.keys(preview).length > 0 && (
@@ -209,7 +229,7 @@ export default function AdminPage() {
 
           <button type="submit" disabled={processing || !allFilesRef.current.length || !block.trim()}
             className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all">
-            {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><Upload className="w-4 h-4" /> Import {allFilesRef.current.length || 0} PDFs</>}
+            {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><Upload className="w-4 h-4" /> Import {allFilesRef.current.length || 0} file(s)</>}
           </button>
         </form>
 
