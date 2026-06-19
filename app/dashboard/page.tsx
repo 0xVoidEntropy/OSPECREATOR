@@ -61,6 +61,7 @@ export default function Dashboard() {
   const [totalStats, setTotalStats] = useState({ total: 0, answered: 0 })
   const [folderYear, setFolderYear] = useState<number | 'other' | null>(null)
   const [folderBlock, setFolderBlock] = useState<string | null>(null)
+  const [showManage, setShowManage] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -203,16 +204,54 @@ export default function Dashboard() {
             { label: 'Answered', value: totalStats.answered, icon: Trophy, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Progress', value: `${overallPercent}%`, icon: TrendingUp, color: 'text-violet-400', bg: 'bg-violet-500/10' },
             { label: 'Subjects', value: subjects.length, icon: Target, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-          ].map(s => (
-            <div key={s.label} className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4">
-              <div className={`w-9 h-9 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
-                <s.icon className={`w-4 h-4 ${s.color}`} />
-              </div>
-              <p className="text-2xl font-bold text-white">{s.value}</p>
-              <p className="text-slate-500 text-xs mt-0.5">{s.label}</p>
-            </div>
-          ))}
+          ].map(s => {
+            const isSubjectsCard = s.label === 'Subjects'
+            const Card = isSubjectsCard && user?.email === ADMIN_EMAIL ? 'button' : 'div'
+            return (
+              <Card
+                key={s.label}
+                onClick={isSubjectsCard ? () => setShowManage(v => !v) : undefined}
+                className={`bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4 text-left ${isSubjectsCard && user?.email === ADMIN_EMAIL ? 'hover:border-amber-500/40 transition-colors cursor-pointer' : ''}`}
+              >
+                <div className={`w-9 h-9 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
+                  <s.icon className={`w-4 h-4 ${s.color}`} />
+                </div>
+                <p className="text-2xl font-bold text-white">{s.value}</p>
+                <p className="text-slate-500 text-xs mt-0.5">{s.label}{isSubjectsCard && user?.email === ADMIN_EMAIL ? ' · manage' : ''}</p>
+              </Card>
+            )
+          })}
         </div>
+
+        {/* Admin: flat subject manager — delete any subject without drilling into folders */}
+        {showManage && user?.email === ADMIN_EMAIL && (
+          <div className="bg-slate-900/60 border border-amber-500/30 rounded-2xl p-5 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-white">Manage Subjects</h3>
+              <button onClick={() => setShowManage(false)} className="text-slate-500 hover:text-white text-xs">Close</button>
+            </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {subjects.map(s => (
+                <div key={s.id} className="flex items-center justify-between gap-3 bg-slate-800/50 rounded-xl px-3 py-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span>{s.icon}</span>
+                    <span className="text-sm text-white truncate">{s.name}</span>
+                    <span className="text-xs text-slate-500 shrink-0">
+                      {s.year != null ? `Y${s.year}` : '—'}{s.block ? ` · ${s.block}` : ''} · {s.total} q
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteSubject(s)}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors shrink-0"
+                  >
+                    <Trash2 className="w-3 h-3" /> Delete
+                  </button>
+                </div>
+              ))}
+              {subjects.length === 0 && <p className="text-slate-500 text-sm">No subjects yet.</p>}
+            </div>
+          </div>
+        )}
 
         {/* Overall progress bar */}
         <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-5 mb-8">
