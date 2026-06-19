@@ -582,9 +582,6 @@ function SimulationContent() {
                     loading="lazy"
                   />
                 )}
-                <div className="absolute bottom-2 right-2 bg-black/60 text-slate-400 text-xs px-2 py-1 rounded-lg">
-                  From your lecture slides
-                </div>
               </div>
             )
           })()}
