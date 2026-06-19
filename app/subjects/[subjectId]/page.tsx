@@ -132,7 +132,10 @@ export default function SubjectPage() {
     if (!userId) return
     if (!confirm('Reset all your progress for this subject and start again?')) return
     const ids = questions.map(q => q.id)
-    if (ids.length) await supabase.from('user_progress').delete().eq('user_id', userId).in('question_id', ids)
+    if (ids.length) {
+      const { error } = await supabase.from('user_progress').delete().eq('user_id', userId).in('question_id', ids)
+      if (error) { alert(`Reset failed: ${error.message}`); return }
+    }
     setProgress(prev => {
       const next = new Map(prev)
       ids.forEach(id => next.delete(id))

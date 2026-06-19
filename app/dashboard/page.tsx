@@ -51,6 +51,7 @@ export default function Dashboard() {
   const [folderYear, setFolderYear] = useState<number | 'other' | null>(null)
   const [folderBlock, setFolderBlock] = useState<string | null>(null)
   const [showManage, setShowManage] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -62,6 +63,7 @@ export default function Dashboard() {
       email: session.user.email || '',
       name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Student',
     })
+    setUserId(session.user.id)
 
     const [{ data: subjectsData }, { data: questionsData }, { data: progressData }] = await Promise.all([
       supabase.from('subjects').select('*').order('year').order('block').order('display_order'),
@@ -97,6 +99,15 @@ export default function Dashboard() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/auth')
+  }
+
+  const handleResetAllProgress = async () => {
+    if (!userId) return
+    if (!confirm('Reset ALL your progress across every subject and start again? This can\'t be undone.')) return
+    const { error } = await supabase.from('user_progress').delete().eq('user_id', userId)
+    if (error) { alert(`Reset failed: ${error.message}`); return }
+    setSubjects(prev => prev.map(s => ({ ...s, answered: 0 })))
+    setTotalStats(prev => ({ ...prev, answered: 0 }))
   }
 
   const getSubjectBg = (color: string) => {
@@ -236,6 +247,12 @@ export default function Dashboard() {
               style={{ width: `${overallPercent}%` }}
             />
           </div>
+          <button
+            onClick={handleResetAllProgress}
+            className="mt-3 text-xs text-slate-500 hover:text-red-400 transition-colors"
+          >
+            Reset all progress
+          </button>
         </div>
 
         {/* Quick Actions */}

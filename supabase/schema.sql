@@ -82,6 +82,7 @@ drop policy if exists "lecture_pages_admin_write" on lecture_pages;
 drop policy if exists "progress_user_select" on user_progress;
 drop policy if exists "progress_user_insert" on user_progress;
 drop policy if exists "progress_user_update" on user_progress;
+drop policy if exists "progress_user_delete" on user_progress;
 
 create policy "subjects_public_read" on subjects for select using (true);
 create policy "subjects_admin_write" on subjects for all
@@ -106,6 +107,7 @@ create policy "lecture_pages_admin_write" on lecture_pages for all
 create policy "progress_user_select" on user_progress for select using (auth.uid() = user_id);
 create policy "progress_user_insert" on user_progress for insert with check (auth.uid() = user_id);
 create policy "progress_user_update" on user_progress for update using (auth.uid() = user_id);
+create policy "progress_user_delete" on user_progress for delete using (auth.uid() = user_id);
 
 -- Seed subjects
 insert into subjects (id, name, description, color, icon) values
