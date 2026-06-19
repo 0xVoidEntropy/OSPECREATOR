@@ -16,6 +16,7 @@ import { Suspense } from 'react'
 
 const STATION_DURATION = 5 * 60 // 5 minutes in seconds
 const MAX_STATIONS = 25
+const STORAGE_KEY = 'ospe_simulation_state_v1'
 
 const yearLabel = (y: number) => y === 1 ? '1st Year' : y === 2 ? '2nd Year' : y === 3 ? '3rd Year' : `${y}th Year`
 
@@ -62,6 +63,7 @@ function SimulationContent() {
   const [customSelected, setCustomSelected] = useState<Set<string>>(
     new Set(subjectFilter ? [subjectFilter] : [])
   )
+  const restoringRef = useRef(false)
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -77,10 +79,48 @@ function SimulationContent() {
     if (qData) setAllQuestions(qData)
     if (sData) setSubjects(sData)
     if (pData) setLecturePages(pData)
+
+    // Resume an in-progress session (survives refresh) if one was saved.
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+    if (saved) {
+      try {
+        const s = JSON.parse(saved)
+        if (s.started && !s.finished && Array.isArray(s.stations) && s.stations.length) {
+          restoringRef.current = true
+          setStations(s.stations)
+          setCurrentIdx(s.currentIdx ?? 0)
+          setTimeLeft(s.timeLeft ?? STATION_DURATION)
+          setStationScores(s.stationScores ?? [])
+          setSubAnswers(s.subAnswers ?? [])
+          setRevealedSubs(s.revealedSubs ?? [])
+          setShowAnswer(s.showAnswer ?? false)
+          setShowHint(s.showHint ?? false)
+          setMode(s.mode ?? null)
+          setFolderYear(s.folderYear ?? null)
+          setFolderBlock(s.folderBlock ?? null)
+          if (Array.isArray(s.customSelected)) setCustomSelected(new Set(s.customSelected))
+          setStarted(true)
+          setRunning(true)
+        }
+      } catch { /* ignore corrupt saved state */ }
+    }
+
     setLoading(false)
   }, [router, supabase])
 
   useEffect(() => { loadData() }, [loadData])
+
+  // Persist progress on every change so a refresh/crash resumes exactly where the user left off.
+  useEffect(() => {
+    if (!started || finished) return
+    if (typeof window === 'undefined') return
+    const state = {
+      started, finished: false, stations, currentIdx, timeLeft, stationScores,
+      subAnswers, revealedSubs, showAnswer, showHint, mode, folderYear, folderBlock,
+      customSelected: [...customSelected],
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  }, [started, finished, stations, currentIdx, timeLeft, stationScores, subAnswers, revealedSubs, showAnswer, showHint, mode, folderYear, folderBlock, customSelected])
 
   useEffect(() => {
     if (running && timeLeft > 0) {
@@ -103,6 +143,7 @@ function SimulationContent() {
 
   // reset per-station grading state whenever the station changes
   useEffect(() => {
+    if (restoringRef.current) { restoringRef.current = false; return }
     setSubAnswers(new Array(subCount).fill(null))
     setRevealedSubs(new Array(subCount).fill(false))
     setShowAnswer(false)
@@ -151,6 +192,7 @@ function SimulationContent() {
     if (currentIdx >= stations.length - 1) {
       setRunning(false)
       setFinished(true)
+      if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY)
     } else {
       setCurrentIdx(prev => prev + 1)
     }
@@ -190,6 +232,7 @@ function SimulationContent() {
 
   const reset = () => {
     if (timerRef.current) clearInterval(timerRef.current)
+    if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY)
     setStarted(false)
     setFinished(false)
     setRunning(false)
@@ -456,7 +499,7 @@ function SimulationContent() {
       <div className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-4">
           <button
-            onClick={() => { if (timerRef.current) clearInterval(timerRef.current); setRunning(false); setStarted(false) }}
+            onClick={() => { if (timerRef.current) clearInterval(timerRef.current); if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY); setRunning(false); setStarted(false) }}
             className="text-slate-400 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
