@@ -49,6 +49,7 @@ function SimulationContent() {
   const [showAnswer, setShowAnswer] = useState(false)
   const [showHint, setShowHint] = useState(false)
   const [subAnswers, setSubAnswers] = useState<(boolean | null)[]>([])
+  const [revealedSubs, setRevealedSubs] = useState<boolean[]>([])
   const [stationScores, setStationScores] = useState<number[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -103,6 +104,7 @@ function SimulationContent() {
   // reset per-station grading state whenever the station changes
   useEffect(() => {
     setSubAnswers(new Array(subCount).fill(null))
+    setRevealedSubs(new Array(subCount).fill(false))
     setShowAnswer(false)
     setShowHint(false)
   }, [currentIdx, stations])
@@ -610,12 +612,21 @@ function SimulationContent() {
               currentQ.sub_questions.map((sq, idx) => (
                 <div key={idx} className="border-l-2 border-slate-700 pl-3">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-cyan-300 text-xs font-medium">{sq.label}</p>
                       <p className="text-slate-300 text-sm">{sq.question}</p>
-                      {showAnswer && <p className="text-cyan-100/80 text-xs mt-1 whitespace-pre-line">{sq.answer}</p>}
                     </div>
                     <div className="flex gap-1.5 shrink-0">
+                      {sq.answer && (
+                        <button
+                          onClick={() => setRevealedSubs(prev => prev.map((r, i) => i === idx ? !r : r))}
+                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            revealedSubs[idx] ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-slate-800 text-slate-400 hover:text-cyan-300'
+                          }`}
+                        >
+                          {revealedSubs[idx] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        </button>
+                      )}
                       <button
                         onClick={() => setSubAnswers(prev => prev.map((a, i) => i === idx ? false : a))}
                         className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
@@ -630,6 +641,11 @@ function SimulationContent() {
                       >✓</button>
                     </div>
                   </div>
+                  {revealedSubs[idx] && sq.answer && (
+                    <div className="mt-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3">
+                      <p className="text-cyan-100/90 text-xs leading-relaxed whitespace-pre-line">{sq.answer}</p>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
