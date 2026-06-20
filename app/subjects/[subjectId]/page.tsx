@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { Question, Subject, UserProgress, Lecture, LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
 import CroppedImage from '@/components/CroppedImage'
+import AmbossText from '@/components/AmbossText'
 import {
   ArrowLeft, Lightbulb, Eye, EyeOff, CheckCircle, Clock,
   BookOpen, FileText, ExternalLink, Loader2, ImageIcon, X, ZoomIn, Plus, RotateCcw
@@ -432,7 +433,7 @@ export default function SubjectPage() {
                   )})()}
 
                   {/* Question text */}
-                  <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-line mb-4">{q.question_text}</p>
+                  <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-line mb-4"><AmbossText text={q.question_text} /></p>
 
                   {q.sub_questions && q.sub_questions.length > 0 ? (
                     <div className="space-y-4">
@@ -442,7 +443,7 @@ export default function SubjectPage() {
                         return (
                           <div key={idx} className="border-l-2 border-slate-700 pl-3">
                             <p className="text-slate-300 text-sm leading-relaxed mb-2">
-                              <span className="text-slate-500 font-medium">{sq.label}:</span> {sq.question}
+                              <span className="text-slate-500 font-medium">{sq.label}:</span> <AmbossText text={sq.question} />
                             </p>
                             <div className="flex flex-wrap items-center gap-2">
                               {sq.hint && (
@@ -487,7 +488,7 @@ export default function SubjectPage() {
                                   <CheckCircle className="w-3.5 h-3.5 text-cyan-400" />
                                   <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">Model Answer</span>
                                 </div>
-                                <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line">{sq.answer}</p>
+                                <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line"><AmbossText text={sq.answer} /></p>
                               </div>
                             )}
                           </div>
@@ -573,7 +574,7 @@ export default function SubjectPage() {
                         <CheckCircle className="w-3.5 h-3.5 text-cyan-400" />
                         <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">Model Answer</span>
                       </div>
-                      <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line">{q.answer}</p>
+                      <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line"><AmbossText text={q.answer} /></p>
                     </div>
                   </div>
                 )}

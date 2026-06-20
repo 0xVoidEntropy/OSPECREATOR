@@ -11,6 +11,7 @@ import {
 import { LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
 import CroppedImage from '@/components/CroppedImage'
+import AmbossText from '@/components/AmbossText'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
@@ -588,7 +589,7 @@ function SimulationContent() {
 
           {/* Question text */}
           <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-4">
-            <p className="text-slate-100 text-base leading-relaxed whitespace-pre-line">{currentQ.question_text}</p>
+            <p className="text-slate-100 text-base leading-relaxed whitespace-pre-line"><AmbossText text={currentQ.question_text} /></p>
           </div>
 
           {/* Hint */}
@@ -598,7 +599,7 @@ function SimulationContent() {
                 <Lightbulb className="w-4 h-4 text-amber-400" />
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Hint</span>
               </div>
-              <p className="text-amber-100/80 text-sm leading-relaxed">{currentQ.hint}</p>
+              <p className="text-amber-100/80 text-sm leading-relaxed"><AmbossText text={currentQ.hint} /></p>
             </div>
           )}
 
@@ -609,7 +610,7 @@ function SimulationContent() {
                 <CheckCircle className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Model Answer — check yourself below</span>
               </div>
-              <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line">{currentQ.answer}</p>
+              <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line"><AmbossText text={currentQ.answer} /></p>
             </div>
           )}
 
@@ -672,7 +673,7 @@ function SimulationContent() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-cyan-300 text-xs font-medium">{sq.label}</p>
-                      <p className="text-slate-300 text-sm">{sq.question}</p>
+                      <p className="text-slate-300 text-sm"><AmbossText text={sq.question} /></p>
                     </div>
                     <div className="flex gap-1.5 shrink-0">
                       {sq.answer && (
@@ -701,7 +702,7 @@ function SimulationContent() {
                   </div>
                   {revealedSubs[idx] && sq.answer && (
                     <div className="mt-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3">
-                      <p className="text-cyan-100/90 text-xs leading-relaxed whitespace-pre-line">{sq.answer}</p>
+                      <p className="text-cyan-100/90 text-xs leading-relaxed whitespace-pre-line"><AmbossText text={sq.answer} /></p>
                     </div>
                   )}
                 </div>
@@ -709,7 +710,7 @@ function SimulationContent() {
             ) : (
               <>
                 {showAnswer && currentQ.answer && (
-                  <p className="text-cyan-100/80 text-sm whitespace-pre-line">{currentQ.answer}</p>
+                  <p className="text-cyan-100/80 text-sm whitespace-pre-line"><AmbossText text={currentQ.answer} /></p>
                 )}
                 <div className="flex gap-3">
                   <button
