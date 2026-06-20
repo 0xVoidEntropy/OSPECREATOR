@@ -165,7 +165,7 @@ export default function SubjectPage() {
   const colors = colorMap[subject.color] || colorMap['#0891b2']
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e]">
+    <div className="min-h-screen bg-[#0a0f1e] overflow-x-auto">
       {/* Zoom overlay */}
       {zoomedImage && (
         <div

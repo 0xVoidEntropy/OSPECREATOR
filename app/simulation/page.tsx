@@ -354,7 +354,7 @@ function SimulationContent() {
     })()
 
     return (
-      <div className="min-h-screen bg-[#0a0f1e] p-4">
+      <div className="min-h-screen bg-[#0a0f1e] p-4 overflow-x-auto">
         <div className="max-w-2xl mx-auto pt-8">
           <Link href="/dashboard" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
@@ -487,7 +487,7 @@ function SimulationContent() {
   if (!currentQ) return null
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] flex flex-col">
+    <div className="min-h-screen bg-[#0a0f1e] flex flex-col overflow-x-auto">
       {/* Timer bar */}
       <div className={`h-1 bg-slate-800 relative overflow-hidden`}>
         <div
