@@ -191,6 +191,14 @@ export const MEDICAL_TERMS: string[] = [
   'omeprazole', 'ranitidine', 'metoclopramide', 'ondansetron', 'loperamide',
   'furosemide', 'spironolactone', 'hydrochlorothiazide', 'amlodipine', 'metoprolol',
   'atenolol', 'propranolol', 'lisinopril', 'losartan', 'atorvastatin', 'digoxin',
+  // Common clinical abbreviations (standard, widely-used shorthand — not a
+  // reproduction of any single proprietary glossary/dataset)
+  'chf', 'copd', 'ckd', 'aki', 'uti', 'dvt', 'gerd', 'ibd', 'ibs',
+  'sle', 'dka', 'cva', 'tia', 'als', 'gbs', 'cad', 'htn', 'afib', 'cabg', 'pci',
+  'cxr', 'ecg', 'ekg', 'cbc', 'bmp', 'cmp', 'abg', 'lft', 'ptt', 'inr', 'esr',
+  'crp', 'bun', 'gfr', 'hba1c', 'ldl', 'hdl', 'tsh', 'fsh', 'acth', 'adh', 'pth',
+  'hcg', 'psa', 'ana', 'rbc', 'wbc', 'hgb', 'hct', 'plt', 'ssri', 'snri', 'ppi',
+  'cns', 'msk', 'rom', 'dnr', 'icu',
 ]
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
