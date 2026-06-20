@@ -34,9 +34,6 @@ async function fromMedlinePlus(term: string): Promise<GlossaryResult | null> {
   const definition = stripHtml(rawDef).slice(0, 600)
   if (!definition || (titleMatch && stripHtml(titleMatch[1]).length === 0)) return null
 
-  const imgMatch = body.match(/<content name="organizationName"[^>]*>/) // not an image, placeholder check unused
-  void imgMatch
-
   return {
     term,
     definition,
@@ -58,7 +55,7 @@ async function fromWikipedia(term: string): Promise<GlossaryResult | null> {
   return {
     term,
     definition: data.extract,
-    image: data.thumbnail?.source ?? null,
+    image: data.originalimage?.source ?? data.thumbnail?.source ?? null,
     source: 'Wikipedia',
     url: data.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(term)}`,
   }
@@ -69,11 +66,11 @@ export async function GET(req: NextRequest) {
   if (!term) return NextResponse.json({ error: 'Missing term' }, { status: 400 })
 
   try {
-    const medline = await fromMedlinePlus(term).catch(() => null)
-    if (medline) return NextResponse.json(medline)
-
     const wiki = await fromWikipedia(term).catch(() => null)
     if (wiki) return NextResponse.json(wiki)
+
+    const medline = await fromMedlinePlus(term).catch(() => null)
+    if (medline) return NextResponse.json(medline)
 
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   } catch {

@@ -41,7 +41,7 @@ function TermHighlight({ term }: { term: string }) {
       >
         {term}
       </span>
-      <span className="invisible group-hover/term:visible opacity-0 group-hover/term:opacity-100 transition-opacity absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 z-50 pointer-events-none group-hover/term:pointer-events-auto">
+      <span className="invisible group-hover/term:visible opacity-0 group-hover/term:opacity-100 transition-opacity absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-80 z-50 pointer-events-none group-hover/term:pointer-events-auto">
         <span className="block bg-white text-slate-900 border border-slate-200 rounded-xl shadow-xl shadow-black/30 overflow-hidden text-left">
           <span className="flex items-center gap-2 px-3.5 pt-3 pb-2 border-b border-slate-100">
             <span className="w-5 h-5 rounded-md bg-blue-700 text-white text-[10px] font-bold flex items-center justify-center shrink-0">A</span>
@@ -50,7 +50,7 @@ function TermHighlight({ term }: { term: string }) {
 
           {result?.image && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={result.image} alt={term} className="w-full h-28 object-cover" />
+            <img src={result.image} alt={term} className="w-full h-36 object-cover" />
           )}
 
           <span className="block px-3.5 py-2.5">
@@ -98,8 +98,8 @@ interface Props {
 }
 
 // Underlines recognized medical terms (navy dotted underline, AMBOSS-style) and shows
-// a hover card with a live definition fetched from NIH MedlinePlus (falling back to
-// Wikipedia) — never from AMBOSS or other proprietary/paywalled sources.
+// a hover card with a live definition + photo fetched from Wikipedia (falling back to
+// NIH MedlinePlus) — never from AMBOSS or other proprietary/paywalled sources.
 export default function AmbossText({ text }: Props) {
   if (!text) return null
   const parts = text.split(MEDICAL_TERMS_REGEX)
