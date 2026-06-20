@@ -11,7 +11,7 @@ interface LookupResult {
   url: string
 }
 
-const CACHE_KEY = 'ospe_glossary_cache_v1'
+const CACHE_KEY = 'ospe_glossary_cache_v2'
 const memCache = new Map<string, LookupResult | null>()
 
 function loadPersisted(key: string): LookupResult | null | undefined {
