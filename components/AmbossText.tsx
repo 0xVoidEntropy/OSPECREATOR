@@ -43,7 +43,7 @@ function TermHighlight({ term }: { term: string }) {
   const [result, setResult] = useState<LookupResult | null | undefined>(undefined)
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
-  const [layout, setLayout] = useState<{ top: number; left: number; lineTop: number; lineLeft: number; side: 'right' | 'left' } | null>(null)
+  const [layout, setLayout] = useState<{ top: number; left: number; lineTop: number; lineLeft: number; lineWidth: number; side: 'right' | 'left' } | null>(null)
   const anchorRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
@@ -64,14 +64,20 @@ function TermHighlight({ term }: { term: string }) {
     if (open) { setOpen(false); return }
 
     const rect = anchorRef.current?.getBoundingClientRect()
-    if (rect) {
-      const fitsRight = rect.right + LINE_LENGTH + CARD_WIDTH < window.innerWidth - 12
+    const station = anchorRef.current?.closest('[class*="rounded-2xl"]') as HTMLElement | null
+    const stationRect = station?.getBoundingClientRect() ?? rect
+
+    if (rect && stationRect) {
+      const fitsRight = stationRect.right + LINE_LENGTH + CARD_WIDTH < window.innerWidth - 12
       const side: 'right' | 'left' = fitsRight ? 'right' : 'left'
       const lineTop = rect.top + rect.height / 2
-      const lineLeft = side === 'right' ? rect.right : rect.left - LINE_LENGTH
-      const left = side === 'right' ? rect.right + LINE_LENGTH : rect.left - LINE_LENGTH - CARD_WIDTH
-      const top = Math.min(Math.max(lineTop - 40, 12), window.innerHeight - 220)
-      setLayout({ top, left, lineTop, lineLeft, side })
+      const left = side === 'right' ? stationRect.right + LINE_LENGTH : stationRect.left - LINE_LENGTH - CARD_WIDTH
+      const lineLeft = side === 'right' ? rect.right : left + CARD_WIDTH
+      const lineWidth = side === 'right'
+        ? Math.max(stationRect.right + LINE_LENGTH - rect.right, LINE_LENGTH)
+        : Math.max(rect.left - (left + CARD_WIDTH), LINE_LENGTH)
+      const top = Math.min(Math.max(stationRect.top + 8, 12), window.innerHeight - 220)
+      setLayout({ top, left, lineTop, lineLeft, side, lineWidth })
     }
     setOpen(true)
 
@@ -107,7 +113,7 @@ function TermHighlight({ term }: { term: string }) {
         <>
           <span
             className="fixed z-[99] border-t-2 border-dotted"
-            style={{ top: layout.lineTop, left: layout.lineLeft, width: LINE_LENGTH, borderColor: '#1d4ed8' }}
+            style={{ top: layout.lineTop, left: layout.lineLeft, width: layout.lineWidth, borderColor: '#1d4ed8' }}
           />
           <span
             className="fixed z-[100]"
