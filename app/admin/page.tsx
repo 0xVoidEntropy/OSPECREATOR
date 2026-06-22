@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { ADMIN_EMAIL } from '@/lib/admin'
-import { ArrowLeft, Upload, Loader2, FolderOpen, ClipboardEdit, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, FolderOpen, ClipboardEdit, Trash2, Database, Info, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import nextDynamic from 'next/dynamic'
 
@@ -203,12 +203,15 @@ export default function AdminPage() {
     processNext(files)
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 text-cyan-500 animate-spin" /></div>
+  if (loading) return <div className="flex items-center justify-center min-h-screen bg-[#0A0F1E]"><Loader2 className="w-8 h-8 text-violet-500 animate-spin" /></div>
+
+  const subjectCount = Object.keys(preview).length
+  const fileCount = allFilesRef.current.length
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
+    <div className="min-h-screen bg-[#0A0F1E]">
+      <div className="border-b border-white/10 bg-[#0A0F1E]/80 backdrop-blur-xl sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-3">
           <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></Link>
           <div>
             <h1 className="text-white font-bold">Admin — Curriculum Import</h1>
@@ -217,114 +220,150 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-        <form onSubmit={handleSubmit} className="bg-slate-800 border border-slate-700/40 rounded-2xl p-6 space-y-5">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Year</label>
-              <select value={year} onChange={e => setYear(+e.target.value)} disabled={processing}
-                className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500 transition-colors">
-                {[1,2,3].map(y => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Block name</label>
-              <input value={block} onChange={e => setBlock(e.target.value)} disabled={processing} required
-                placeholder="e.g. GIT, Respiratory"
-                className="w-full bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors" />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">Block folder</label>
-            <div
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${Object.keys(preview).length ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-slate-600/50 hover:border-slate-500/50'} ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={() => !processing && document.getElementById('folder-input')?.click()}
-            >
-              <input id="folder-input" type="file" accept=".pdf,.docx"
-                {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
-                multiple onChange={handleFolderSelect} className="hidden" disabled={processing} />
-              <FolderOpen className="w-10 h-10 text-slate-500 mx-auto mb-2" />
-              <p className="text-slate-400 text-sm">Click to select a block folder</p>
-              <p className="text-slate-600 text-xs mt-1">PDFs and .docx Q&amp;A labs both supported — subjects detected automatically from subfolders</p>
+      <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left column: form + progress */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          <form onSubmit={handleSubmit} className="glass-panel rounded-2xl p-6 space-y-5 border border-white/10">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Year</label>
+                <select value={year} onChange={e => setYear(+e.target.value)} disabled={processing}
+                  className="w-full bg-[#161D2F] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors">
+                  {[1,2,3].map(y => <option key={y} value={y}>{YEAR_LABELS[y]}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1.5">Block name</label>
+                <input value={block} onChange={e => setBlock(e.target.value)} disabled={processing} required
+                  placeholder="e.g. GIT, Respiratory"
+                  className="w-full bg-[#161D2F] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 transition-colors" />
+              </div>
             </div>
 
-            {Object.keys(preview).length > 0 && (
-              <div className="mt-4 space-y-3">
-                <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Detected {Object.keys(preview).length} subject(s) — {allFilesRef.current.length} PDFs total</p>
-                {Object.entries(preview).sort().map(([subj, fnames]) => (
-                  <div key={subj} className="bg-slate-700/40 rounded-xl px-4 py-3">
-                    <p className="text-white text-sm font-medium mb-1">
-                      {SUBJECT_ICONS[subj.toLowerCase()] || '📁'} {subj}
-                      <span className="text-slate-500 text-xs font-normal ml-2">{fnames.length} file(s)</span>
-                    </p>
-                    <div className="space-y-0.5">
-                      {fnames.map((n, i) => <p key={i} className="text-slate-500 text-xs truncate pl-2">· {n}</p>)}
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1.5">Block folder</label>
+              <div
+                className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all group ${subjectCount ? 'border-violet-500/60 bg-violet-500/5' : 'border-violet-500/30 hover:border-violet-500/60'} ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => !processing && document.getElementById('folder-input')?.click()}
+              >
+                <input id="folder-input" type="file" accept=".pdf,.docx"
+                  {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
+                  multiple onChange={handleFolderSelect} className="hidden" disabled={processing} />
+                <div className="w-16 h-16 rounded-full bg-violet-500/10 flex items-center justify-center mb-3 mx-auto group-hover:scale-110 transition-transform">
+                  <FolderOpen className="w-8 h-8 text-violet-400" />
+                </div>
+                <p className="text-slate-300 text-sm font-medium">Click to select a block folder</p>
+                <p className="text-slate-500 text-xs mt-1 max-w-xs mx-auto">PDFs and .docx Q&amp;A labs both supported — subjects detected automatically from subfolders</p>
+              </div>
+
+              {subjectCount > 0 && (
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Detected {subjectCount} subject(s)</p>
+                    <span className="px-3 py-1 bg-violet-500/10 text-violet-300 rounded-full text-xs font-medium">{fileCount} file(s) queued</span>
+                  </div>
+                  {Object.entries(preview).sort().map(([subj, fnames]) => (
+                    <div key={subj} className="bg-[#161D2F] border border-white/5 rounded-xl px-4 py-3 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0 text-base">
+                        {SUBJECT_ICONS[subj.toLowerCase()] || '📁'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium mb-1">
+                          {subj}
+                          <span className="text-slate-500 text-xs font-normal ml-2">{fnames.length} file(s)</span>
+                        </p>
+                        <div className="space-y-0.5">
+                          {fnames.map((n, i) => <p key={i} className="text-slate-500 text-xs truncate">· {n}</p>)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button type="submit" disabled={processing || !fileCount || !block.trim()}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-[#6D28D9] hover:from-violet-400 hover:to-[#7c3aed] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 transition-all">
+              {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><Database className="w-4 h-4" /> Import {fileCount || 0} file(s)</>}
+            </button>
+          </form>
+
+          {(log.length > 0 || currentJob) && (
+            <div className="glass-panel rounded-2xl overflow-hidden border border-white/10 flex flex-col">
+              <div className="bg-[#161D2F] px-4 py-2.5 border-b border-white/5 flex items-center justify-between">
+                <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">Live Extraction Log</span>
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500/40"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500/40"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/40"></div>
+                </div>
+              </div>
+              <div className="p-4 space-y-4">
+                {currentJob && (
+                  <div className="bg-[#161D2F] border border-violet-500/20 rounded-xl p-4">
+                    <p className="text-violet-400 text-sm font-medium mb-2">Extracting slides: {currentJob.fileName}</p>
+                    <PdfProcessor
+                      lectureId={currentJob.lectureId}
+                      subjectId={currentJob.subjectId}
+                      fileUrl={currentJob.fileUrl}
+                      onComplete={handleSlidesComplete}
+                      onError={err => {
+                        addLog(`✗ Slide extraction: ${err}`)
+                        const { remainingFiles } = currentJob
+                        setCurrentJob(null)
+                        processNext(remainingFiles)
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="space-y-1 max-h-80 overflow-y-auto font-mono text-xs scrollbar-hide">
+                  {log.map((l, i) => (
+                    <p key={i} className={l.startsWith('✓') ? 'text-emerald-400' : l.startsWith('✗') ? 'text-red-400' : 'text-slate-400'}>{l}</p>
+                  ))}
+                  <div ref={logEndRef} />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right column: all lectures */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          <div className="glass-panel rounded-2xl p-6 border border-white/10 flex flex-col h-full">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-semibold text-white">All Lectures</h2>
+              <span className="px-3 py-1 bg-violet-500/10 text-violet-300 rounded-full text-xs font-medium">{allLectures.length} total</span>
+            </div>
+
+            {!allLectures.length ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-10">
+                <Info className="w-8 h-8 text-slate-600 mb-2" />
+                <p className="text-slate-500 text-sm">No lectures uploaded yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-1">
+                {allLectures.map(l => (
+                  <div key={l.id} className="flex items-center justify-between bg-[#161D2F] hover:bg-white/5 border border-white/5 rounded-xl px-4 py-3 transition-colors">
+                    <Link href={`/admin/review/${l.id}`} className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">{l.title}</p>
+                      <p className="text-slate-500 text-xs flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400/70" />
+                        {l.questionCount} question(s) generated · {new Date(l.created_at).toLocaleDateString()}
+                      </p>
+                    </Link>
+                    <div className="flex items-center gap-3 ml-3 shrink-0">
+                      <Link href={`/admin/review/${l.id}`} className="flex items-center gap-1 text-violet-400 hover:text-violet-300 text-xs">
+                        <ClipboardEdit className="w-3.5 h-3.5" /> Review
+                      </Link>
+                      <button onClick={() => deleteLecture(l.id, l.title)}
+                        className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs">
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-
-          <button type="submit" disabled={processing || !allFilesRef.current.length || !block.trim()}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all">
-            {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><Upload className="w-4 h-4" /> Import {allFilesRef.current.length || 0} file(s)</>}
-          </button>
-        </form>
-
-        {(log.length > 0 || currentJob) && (
-          <div className="bg-slate-800 border border-slate-700/40 rounded-2xl p-6">
-            <h2 className="font-semibold text-white mb-4">Progress</h2>
-            {currentJob && (
-              <div className="mb-4 bg-slate-700/40 border border-cyan-500/20 rounded-xl p-4">
-                <p className="text-cyan-400 text-sm font-medium mb-2">Extracting slides: {currentJob.fileName}</p>
-                <PdfProcessor
-                  lectureId={currentJob.lectureId}
-                  subjectId={currentJob.subjectId}
-                  fileUrl={currentJob.fileUrl}
-                  onComplete={handleSlidesComplete}
-                  onError={err => {
-                    addLog(`✗ Slide extraction: ${err}`)
-                    const { remainingFiles } = currentJob
-                    setCurrentJob(null)
-                    processNext(remainingFiles)
-                  }}
-                />
-              </div>
-            )}
-            <div className="space-y-1 max-h-80 overflow-y-auto font-mono text-xs">
-              {log.map((l, i) => (
-                <p key={i} className={l.startsWith('✓') ? 'text-emerald-400' : l.startsWith('✗') ? 'text-red-400' : 'text-slate-400'}>{l}</p>
-              ))}
-              <div ref={logEndRef} />
-            </div>
-          </div>
-        )}
-
-        <div className="bg-slate-800 border border-slate-700/40 rounded-2xl p-6">
-          <h2 className="font-semibold text-white mb-4">All lectures — review &amp; polish anytime</h2>
-          {!allLectures.length && <p className="text-slate-500 text-sm">No lectures uploaded yet.</p>}
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {allLectures.map(l => (
-              <div key={l.id} className="flex items-center justify-between bg-slate-700/40 hover:bg-slate-700/60 rounded-xl px-4 py-3 transition-colors">
-                <Link href={`/admin/review/${l.id}`} className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">{l.title}</p>
-                  <p className="text-slate-500 text-xs">
-                    {l.questionCount} question(s) generated · {new Date(l.created_at).toLocaleDateString()}
-                  </p>
-                </Link>
-                <div className="flex items-center gap-3 ml-3 shrink-0">
-                  <Link href={`/admin/review/${l.id}`} className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-xs">
-                    <ClipboardEdit className="w-3.5 h-3.5" /> Review
-                  </Link>
-                  <button onClick={() => deleteLecture(l.id, l.title)}
-                    className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs">
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

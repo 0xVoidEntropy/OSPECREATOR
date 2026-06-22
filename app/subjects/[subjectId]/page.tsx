@@ -146,8 +146,8 @@ export default function SubjectPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-[#0a0f1e]">
+        <Loader2 className="w-8 h-8 text-[#4cd7f6] animate-spin" />
       </div>
     )
   }
@@ -165,7 +165,7 @@ export default function SubjectPage() {
   const colors = colorMap[subject.color] || colorMap['#0891b2']
 
   return (
-    <div className="min-h-screen bg-[#0a0f1e] overflow-x-auto">
+    <div className="min-h-screen bg-[#0a0f1e] clinical-overlay overflow-x-auto">
       {/* Zoom overlay */}
       {zoomedImage && (
         <div
@@ -187,12 +187,12 @@ export default function SubjectPage() {
       {/* PDF viewer overlay */}
       {activeLecture && (
         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <div className="flex items-center justify-between p-4 border-b border-white/10 glass-panel">
             <p className="text-white font-medium">{activeLecture.title}</p>
             <div className="flex items-center gap-2">
               {activeLecture.file_url && (
                 <a href={activeLecture.file_url} target="_blank" rel="noopener noreferrer"
-                  className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-1">
+                  className="text-[#4cd7f6] hover:text-[#7ee4fb] text-sm flex items-center gap-1">
                   <ExternalLink className="w-4 h-4" /> Open in new tab
                 </a>
               )}
@@ -217,20 +217,22 @@ export default function SubjectPage() {
       )}
 
       {/* Header */}
-      <div className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">
+      <div className="bg-[#0a0f1e]/80 backdrop-blur-xl border-b border-white/10 shadow-md sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-4">
+          <Link href="/dashboard" className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/5 transition-all text-slate-400 hover:text-white">
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <span className="text-2xl">{subject.icon}</span>
+          <div className={`w-9 h-9 rounded-lg ${colors.bg} flex items-center justify-center shrink-0`}>
+            <span className="text-lg">{subject.icon}</span>
+          </div>
           <div>
-            <h1 className="text-white font-bold">{subject.name}</h1>
+            <h1 className="text-white font-bold tracking-tight">{subject.name}</h1>
             <p className="text-slate-500 text-xs">{answered} / {questions.length} answered</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={deleteProgress}
-              className="flex items-center gap-2 bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-300 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
+              className="flex items-center gap-2 bg-white/5 hover:bg-red-500/20 text-slate-300 hover:text-red-300 px-3 py-2 rounded-xl text-sm font-medium transition-colors border border-white/10"
               title="Reset progress for this subject"
             >
               <RotateCcw className="w-4 h-4" />
@@ -238,7 +240,7 @@ export default function SubjectPage() {
             </button>
             <Link
               href={`/simulation?subject=${subjectId}`}
-              className="flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+              className="flex items-center gap-2 bg-gradient-to-r from-[#06b6d4] to-[#0053db] hover:shadow-lg hover:shadow-cyan-500/20 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-95"
             >
               <Clock className="w-4 h-4" />
               <span className="hidden sm:inline">5-min Simulation</span>
@@ -249,12 +251,12 @@ export default function SubjectPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Progress */}
-        <div className={`${colors.bg} border ${colors.border} rounded-2xl p-5 mb-6`}>
+        <div className={`glass-panel border ${colors.border} rounded-2xl p-5 mb-6`}>
           <div className="flex items-center justify-between mb-2">
-            <span className={`text-sm font-medium ${colors.text}`}>Subject Progress</span>
-            <span className="text-slate-300 text-sm font-bold">{answered} / {questions.length}</span>
+            <span className={`text-sm font-medium ${colors.text} uppercase tracking-widest`}>Subject Progress</span>
+            <span className="text-slate-200 text-sm font-bold">{answered} / {questions.length}</span>
           </div>
-          <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-2 bg-slate-800/80 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all duration-700"
               style={{
@@ -269,11 +271,11 @@ export default function SubjectPage() {
         {labStats.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <FileText className="w-4 h-4" /> Study by Lab
               </h2>
               {activeLab !== null && (
-                <button onClick={() => setActiveLab(null)} className="text-xs text-cyan-400 hover:text-cyan-300">
+                <button onClick={() => setActiveLab(null)} className="text-xs text-[#4cd7f6] hover:text-[#7ee4fb]">
                   Show all labs
                 </button>
               )}
@@ -286,24 +288,24 @@ export default function SubjectPage() {
                 return (
                   <div
                     key={lecture.id}
-                    className={`relative bg-slate-900/60 border rounded-xl p-3 transition-all ${
-                      isActive ? 'border-cyan-500/60 bg-cyan-500/5' : done ? 'border-emerald-500/30' : 'border-slate-700/40 hover:border-slate-600/60'
+                    className={`relative glass-panel border rounded-xl p-3 transition-all ${
+                      isActive ? 'border-[#4cd7f6]/60 bg-[#4cd7f6]/5' : done ? 'border-emerald-500/30' : 'border-white/10 hover:border-white/20'
                     }`}
                   >
                     <button
                       onClick={() => setActiveLab(isActive ? null : lecture.id)}
                       className="flex items-center gap-3 w-full text-left"
                     >
-                      <div className="w-9 h-9 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
-                        <FileText className="w-4 h-4 text-cyan-400" />
+                      <div className="w-9 h-9 bg-white/5 rounded-lg flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4 text-[#4cd7f6]" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-slate-300 truncate flex items-center gap-1.5">
                           {lecture.title}
                           {done && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
                         </p>
-                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1.5">
-                          <div className={`h-full rounded-full ${done ? 'bg-emerald-500' : 'bg-cyan-500'}`} style={{ width: `${percent}%` }} />
+                        <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden mt-1.5">
+                          <div className={`h-full rounded-full ${done ? 'bg-emerald-500' : 'bg-[#4cd7f6]'}`} style={{ width: `${percent}%` }} />
                         </div>
                         <p className="text-xs text-slate-500 mt-1">{labAnswered}/{total} done{isActive ? ' · studying this lab' : ''}</p>
                       </div>
@@ -311,7 +313,7 @@ export default function SubjectPage() {
                     {lecture.file_url && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setActiveLecture(lecture) }}
-                        className="absolute top-2.5 right-2.5 text-slate-500 hover:text-cyan-400"
+                        className="absolute top-2.5 right-2.5 text-slate-500 hover:text-[#4cd7f6]"
                         title="View lecture PDF"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -329,8 +331,8 @@ export default function SubjectPage() {
           <div className="flex gap-2 mb-5 overflow-x-auto pb-2">
             <button
               onClick={() => setActiveStation(null)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                activeStation === null ? 'bg-cyan-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                activeStation === null ? 'bg-gradient-to-r from-[#06b6d4] to-[#0053db] text-white' : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
               }`}
             >
               All Stations
@@ -339,8 +341,8 @@ export default function SubjectPage() {
               <button
                 key={s}
                 onClick={() => setActiveStation(activeStation === s ? null : s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                  activeStation === s ? 'bg-cyan-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                  activeStation === s ? 'bg-gradient-to-r from-[#06b6d4] to-[#0053db] text-white' : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
                 }`}
               >
                 Station {stationDisplay.get(s)}
@@ -350,13 +352,13 @@ export default function SubjectPage() {
         )}
 
         {/* Filter */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex p-1 bg-white/5 rounded-xl border border-white/10 w-fit mb-6">
           {(['all', 'unanswered', 'answered'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
-                filter === f ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${
+                filter === f ? 'bg-gradient-to-r from-[#06b6d4] to-[#0053db] text-white' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               {f} {f === 'all' ? `(${questions.length})` : f === 'answered' ? `(${answered})` : `(${questions.length - answered})`}
@@ -381,19 +383,19 @@ export default function SubjectPage() {
             return (
               <div
                 key={q.id}
-                className={`bg-slate-900/60 border rounded-2xl overflow-hidden transition-all duration-200 ${
-                  isAnswered ? 'border-emerald-500/30' : 'border-slate-700/40 hover:border-slate-600/60'
+                className={`glass-panel border rounded-2xl overflow-hidden transition-all duration-300 ${
+                  isAnswered ? 'border-emerald-500/30' : 'border-white/10 hover:border-[#4cd7f6]/40'
                 }`}
               >
                 <div className="p-5">
                   {/* Badges */}
                   <div className="flex items-center gap-2 mb-3 flex-wrap">
                     {q.station_number && (
-                      <span className={`text-xs px-2 py-0.5 rounded-lg font-medium ${colors.badge}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors.badge}`}>
                         Station {stationDisplay.get(q.station_number) ?? q.station_number}
                       </span>
                     )}
-                    <span className={`text-xs px-2 py-0.5 rounded-lg font-medium ${
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       q.difficulty === 'hard' ? 'bg-red-500/20 text-red-300' :
                       q.difficulty === 'easy' ? 'bg-green-500/20 text-green-300' :
                       'bg-yellow-500/20 text-yellow-300'
@@ -401,7 +403,7 @@ export default function SubjectPage() {
                       {q.difficulty}
                     </span>
                     {isAnswered && (
-                      <span className="text-xs px-2 py-0.5 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center gap-1">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center gap-1">
                         <CheckCircle className="w-3 h-3" /> Done
                       </span>
                     )}
@@ -412,7 +414,7 @@ export default function SubjectPage() {
                     const crop = q.image_crop as { x: number; y: number; w: number; h: number } | null | undefined
                     return (
                     <div className="mb-4 relative group cursor-pointer" onClick={() => setZoomedImage(matchedImage)}>
-                      <div className="relative w-full rounded-xl overflow-hidden border border-slate-700/50 bg-slate-800">
+                      <div className="relative w-full rounded-xl overflow-hidden border border-white/10 bg-slate-800">
                         {crop ? (
                           <CroppedImage src={matchedImage} crop={crop} alt={`Slide for station ${q.station_number}`} />
                         ) : (
@@ -441,7 +443,7 @@ export default function SubjectPage() {
                         const subKey = `${q.id}::${idx}`
                         const subState = questionStates.get(subKey) || { showAnswer: false, showHint: false, showAddImage: false }
                         return (
-                          <div key={idx} className="border-l-2 border-slate-700 pl-3">
+                          <div key={idx} className="border-l-2 border-white/10 pl-3">
                             <p className="text-slate-300 text-sm leading-relaxed mb-2">
                               <span className="text-slate-500 font-medium">{sq.label}:</span> <AmbossText text={sq.question} />
                             </p>
@@ -452,7 +454,7 @@ export default function SubjectPage() {
                                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                     subState.showHint
                                       ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                      : 'bg-slate-800 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
+                                      : 'bg-white/5 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
                                   }`}
                                 >
                                   <Lightbulb className="w-3.5 h-3.5" />
@@ -465,7 +467,7 @@ export default function SubjectPage() {
                                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                     subState.showAnswer
                                       ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                                      : 'bg-slate-800 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'
+                                      : 'bg-white/5 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'
                                   }`}
                                 >
                                   {subState.showAnswer ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -503,7 +505,7 @@ export default function SubjectPage() {
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                             state.showHint
                               ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                              : 'bg-slate-800 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
+                              : 'bg-white/5 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
                           }`}
                         >
                           <Lightbulb className="w-3.5 h-3.5" />
@@ -516,7 +518,7 @@ export default function SubjectPage() {
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                             state.showAnswer
                               ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-                              : 'bg-slate-800 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'
+                              : 'bg-white/5 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'
                           }`}
                         >
                           {state.showAnswer ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -533,7 +535,7 @@ export default function SubjectPage() {
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                           isAnswered && prog?.correct === false
                             ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                            : 'bg-slate-800 text-slate-500 hover:text-red-300 hover:bg-red-500/10'
+                            : 'bg-white/5 text-slate-500 hover:text-red-300 hover:bg-red-500/10'
                         }`}
                       >
                         ✗ Missed
@@ -543,7 +545,7 @@ export default function SubjectPage() {
                         className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                           isAnswered && prog?.correct !== false
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                            : 'bg-slate-800 text-slate-500 hover:text-emerald-300 hover:bg-emerald-500/10'
+                            : 'bg-white/5 text-slate-500 hover:text-emerald-300 hover:bg-emerald-500/10'
                         }`}
                       >
                         ✓ Got it

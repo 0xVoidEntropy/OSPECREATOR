@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase'
 import { Question, Subject } from '@/types'
 import {
   ArrowLeft, Clock, ChevronRight, ChevronLeft, Lightbulb, Eye, EyeOff,
-  Play, RotateCcw, Trophy, Loader2, X, Shuffle, ListChecks, Folder, FolderOpen, CheckCheck, XCircle, CheckCircle
+  Play, RotateCcw, Trophy, Loader2, X, Shuffle, ListChecks, Folder, FolderOpen, CheckCheck, XCircle, CheckCircle,
+  ZoomIn, LogOut
 } from 'lucide-react'
 import { LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
@@ -55,6 +56,7 @@ function SimulationContent() {
   const [stationScores, setStationScores] = useState<number[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [zoomImage, setZoomImage] = useState<string | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // mode + selection state
@@ -270,13 +272,14 @@ function SimulationContent() {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-4">
         <div className="max-w-lg w-full text-center">
-          <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 glow-cyan">
             <Trophy className="w-10 h-10 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-2">Station Complete!</h2>
+          <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">OSPE Precision</span>
+          <h2 className="text-3xl font-bold text-white mt-1 mb-2">Station Complete!</h2>
           <p className="text-slate-400 mb-8">You've completed all {stationScores.length} stations</p>
 
-          <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-6">
+          <div className="glass-panel rounded-2xl p-6 mb-6">
             <div className="text-5xl font-bold text-cyan-400 mb-1">{grade25.toFixed(1)} / 25</div>
             <p className="text-slate-400 text-sm">Weighted grade across all stations</p>
             <div className="mt-4 h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -287,7 +290,7 @@ function SimulationContent() {
             </div>
           </div>
 
-          <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4 mb-6 max-h-72 overflow-y-auto text-left">
+          <div className="glass-panel rounded-2xl p-4 mb-6 max-h-72 overflow-y-auto text-left">
             <p className="text-slate-500 text-xs uppercase tracking-wider font-medium mb-3 px-1">Per-station breakdown</p>
             <div className="space-y-1.5">
               {stations.map((s, i) => {
@@ -356,15 +359,16 @@ function SimulationContent() {
     return (
       <div className="min-h-screen bg-[#0a0f1e] p-4 overflow-x-auto">
         <div className="max-w-2xl mx-auto pt-8">
-          <Link href="/dashboard" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-8 transition-colors">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 text-slate-400 hover:text-cyan-400 mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </Link>
 
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 rounded-2xl flex items-center justify-center mx-auto mb-4 glow-cyan">
               <Clock className="w-8 h-8 text-cyan-400" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">OSPE Station Simulation</h1>
+            <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">OSPE Precision</span>
+            <h1 className="text-3xl font-bold text-white mt-1 mb-2">Station Simulation</h1>
             <p className="text-slate-400">5 minutes per station — just like the real exam</p>
           </div>
 
@@ -372,7 +376,7 @@ function SimulationContent() {
           <div className="grid grid-cols-2 gap-3 mb-6">
             <button
               onClick={() => { setMode('random'); setFolderYear(null); setFolderBlock(null) }}
-              className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${mode === 'random' ? 'bg-cyan-500/15 border-cyan-500/50' : 'bg-slate-900/60 border-slate-700/40 hover:border-slate-600'}`}
+              className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${mode === 'random' ? 'bg-cyan-500/15 border-cyan-500/50 shadow-lg shadow-cyan-500/10' : 'glass-panel border-slate-700/40 hover:border-slate-600'}`}
             >
               <Shuffle className="w-5 h-5 text-cyan-400" />
               <div className="text-left">
@@ -382,7 +386,7 @@ function SimulationContent() {
             </button>
             <button
               onClick={() => setMode('custom')}
-              className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${mode === 'custom' ? 'bg-cyan-500/15 border-cyan-500/50' : 'bg-slate-900/60 border-slate-700/40 hover:border-slate-600'}`}
+              className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${mode === 'custom' ? 'bg-cyan-500/15 border-cyan-500/50 shadow-lg shadow-cyan-500/10' : 'glass-panel border-slate-700/40 hover:border-slate-600'}`}
             >
               <ListChecks className="w-5 h-5 text-cyan-400" />
               <div className="text-left">
@@ -393,7 +397,7 @@ function SimulationContent() {
           </div>
 
           {mode === 'random' && (
-            <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-6">
+            <div className="glass-panel rounded-2xl p-6 mb-6">
               <h3 className="font-semibold text-white mb-4">Choose a Year &amp; Block</h3>
               {folderYear === null && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -437,7 +441,7 @@ function SimulationContent() {
           )}
 
           {mode === 'custom' && (
-            <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-6">
+            <div className="glass-panel rounded-2xl p-6 mb-6">
               <h3 className="font-semibold text-white mb-4">Select Subjects</h3>
               <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
                 {customGroups.map(group => (
@@ -497,22 +501,26 @@ function SimulationContent() {
       </div>
 
       {/* Header */}
-      <div className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm">
+      <div className="border-b border-white/5 bg-[#0a0f1e]/80 backdrop-blur-xl">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-4">
           <button
             onClick={() => { if (timerRef.current) clearInterval(timerRef.current); if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY); setRunning(false); setStarted(false) }}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="flex items-center gap-1.5 text-slate-400 hover:text-red-400 transition-colors"
+            title="Exit Exam"
           >
-            <X className="w-5 h-5" />
+            <LogOut className="w-5 h-5" />
           </button>
 
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400 text-sm">Station {currentIdx + 1} of {stations.length}</span>
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono font-bold text-sm ${
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">OSPE Precision</span>
+                <span className="text-white text-sm font-semibold">Station {currentIdx + 1} of {stations.length}</span>
+              </div>
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono font-bold text-sm border ${
                 isUrgent
-                  ? 'bg-red-500/20 text-red-400 border border-red-500/30 timer-urgent'
-                  : 'bg-slate-800 text-cyan-400'
+                  ? 'bg-red-500/20 text-red-400 border-red-500/30 timer-urgent'
+                  : 'bg-slate-800/80 text-cyan-400 border-white/5'
               }`}>
                 <Clock className="w-4 h-4" />
                 {formatTime(timeLeft)}
@@ -553,10 +561,10 @@ function SimulationContent() {
           {/* Subject badge + ratio badge */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {currentQ.subjects && (
-              <>
-                <span className="text-xl">{(currentQ.subjects as Subject).icon}</span>
-                <span className="text-sm text-slate-400">{(currentQ.subjects as Subject).name}</span>
-              </>
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 rounded-full uppercase tracking-wider font-medium">
+                <span className="text-base leading-none">{(currentQ.subjects as Subject).icon}</span>
+                {(currentQ.subjects as Subject).name}
+              </span>
             )}
             <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">
               Station {currentIdx + 1}
@@ -572,14 +580,22 @@ function SimulationContent() {
             if (!img) return null
             const crop = currentQ.image_url ? currentQ.image_crop : null
             return (
-              <div className="mb-4 rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-800 relative">
+              <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 bg-slate-950 relative group shadow-2xl">
+                <button
+                  type="button"
+                  onClick={() => setZoomImage(img)}
+                  className="absolute top-3 left-3 z-10 p-2 bg-[#0a0f1e]/80 backdrop-blur-md border border-white/10 rounded-lg text-cyan-400 hover:bg-cyan-500/20 transition-colors"
+                  title="Zoom slide"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
                 {crop ? (
                   <CroppedImage src={img} crop={crop} alt={`Slide for station ${currentQ.station_number}`} />
                 ) : (
                   <img
                     src={img}
                     alt={`Slide for station ${currentQ.station_number}`}
-                    className="w-full object-contain max-h-72"
+                    className="w-full object-contain max-h-72 transition-transform duration-700 group-hover:scale-[1.02]"
                     loading="lazy"
                   />
                 )}
@@ -588,7 +604,7 @@ function SimulationContent() {
           })()}
 
           {/* Question text */}
-          <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 mb-4">
+          <div className="glass-panel rounded-2xl p-6 mb-4">
             <p className="text-slate-100 text-base leading-relaxed whitespace-pre-line"><AmbossText text={currentQ.question_text} /></p>
           </div>
 
@@ -646,7 +662,7 @@ function SimulationContent() {
           </div>
 
           {/* Sub-question grading */}
-          <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-5 mb-4 space-y-3">
+          <div className="glass-panel rounded-2xl p-5 mb-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-slate-400 text-xs uppercase tracking-wider font-medium">
                 {currentQ.sub_questions?.length ? `Sub-questions (${currentQ.sub_questions.length})` : 'How did you do?'}
@@ -749,6 +765,28 @@ function SimulationContent() {
           </div>
         </div>
       </div>
+
+      {/* Slide zoom modal */}
+      {zoomImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setZoomImage(null)}
+        >
+          <button
+            onClick={() => setZoomImage(null)}
+            className="absolute top-4 right-4 p-2 bg-slate-800/80 hover:bg-slate-700 rounded-full text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomImage}
+            alt="Zoomed slide"
+            className="max-w-full max-h-full object-contain rounded-xl border border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }

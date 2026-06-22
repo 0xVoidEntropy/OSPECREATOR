@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { BookOpen, Mail, Lock, User, AlertCircle, Loader2, Microscope } from 'lucide-react'
+import { Mail, Lock, User, AlertCircle, Loader2, Microscope, ArrowRight, HelpCircle } from 'lucide-react'
 
 type Mode = 'login' | 'signup' | 'forgot'
 
@@ -54,7 +54,7 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-[#0A0F1E] relative overflow-hidden flex flex-col">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
@@ -62,156 +62,213 @@ export default function AuthPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="w-full max-w-md relative z-10">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
-              <Microscope className="w-8 h-8 text-white" />
+      {/* Top app bar */}
+      <header className="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 border-b border-white/10 bg-[#0A0F1E]/40 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4cd7f6] to-[#0053db] flex items-center justify-center">
+            <Microscope className="w-4 h-4 text-[#003640]" />
+          </div>
+          <span className="text-lg font-bold text-[#4cd7f6] tracking-tight">OSPE Study Helper</span>
+        </div>
+        <div className="flex items-center gap-4 text-slate-400 text-sm">
+          <span className="hidden md:inline opacity-60">Integrated Medical Sciences Protocol</span>
+          <HelpCircle className="w-5 h-5 cursor-help hover:text-[#4cd7f6] transition-colors" />
+        </div>
+      </header>
+
+      <main className="relative z-10 flex-grow grid grid-cols-1 lg:grid-cols-2 w-full max-w-6xl mx-auto pt-16 px-4 md:px-6">
+        {/* Hero Section: Left */}
+        <div className="hidden lg:flex flex-col justify-center items-start pr-12 relative overflow-hidden">
+          <div className="relative w-full h-[500px]">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-blue-600/5 to-transparent rounded-3xl blur-2xl" />
+            {/* Floating info chips */}
+            <div className="absolute top-1/4 left-0 bg-[rgba(22,29,47,0.7)] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-4 rounded-xl border-l-4 border-l-[#4cd7f6]">
+              <p className="text-xs text-[#4cd7f6] uppercase tracking-widest mb-1">Active Module</p>
+              <p className="text-lg font-semibold text-white">Musculoskeletal Lab</p>
+              <p className="text-xs text-slate-400">Anatomy Rotation: Block 02</p>
+            </div>
+            <div className="absolute bottom-1/4 right-0 bg-[rgba(22,29,47,0.7)] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-4 rounded-xl border-r-4 border-r-[#b4c5ff]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#4cd7f6] animate-pulse" />
+                <p className="text-sm text-white">System Status: Synchronized</p>
+              </div>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-1">OSPE Study Helper</h1>
-          <p className="text-slate-400 text-sm">IMS — Integrated Medical Sciences</p>
-        </div>
-
-        {/* Card */}
-        <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
-          {/* Tab switcher */}
-          {mode !== 'forgot' && (
-            <div className="flex bg-slate-800/50 rounded-xl p-1 mb-6">
-              {(['login', 'signup'] as Mode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => { setMode(m); setError(null); setMessage(null) }}
-                  className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    mode === m
-                      ? 'bg-cyan-500 text-white shadow-sm shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {m === 'login' ? 'Sign In' : 'Sign Up'}
-                </button>
-              ))}
-            </div>
-          )}
-          {mode === 'forgot' && (
-            <h2 className="text-white font-semibold text-lg mb-6">Reset Password</h2>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'signup' && (
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={e => setFullName(e.target.value)}
-                    required
-                    placeholder="Dr. Ahmed Al-Farsi"
-                    className="w-full bg-slate-800/50 border border-slate-600/50 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  placeholder="student@university.edu.sa"
-                  className="w-full bg-slate-800/50 border border-slate-600/50 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
-                />
-              </div>
-            </div>
-
-            {mode !== 'forgot' && (
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1.5">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    placeholder="Minimum 6 characters"
-                    className="w-full bg-slate-800/50 border border-slate-600/50 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
-                  />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl p-3">
-                <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
-                <p className="text-red-400 text-xs">{error}</p>
-              </div>
-            )}
-
-            {message && (
-              <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
-                <p className="text-green-400 text-xs">{message}</p>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> {mode === 'login' ? 'Signing in...' : mode === 'forgot' ? 'Sending...' : 'Creating account...'}</>
-              ) : (
-                <>{mode === 'login' ? 'Sign In' : mode === 'forgot' ? 'Send Reset Email' : 'Create Account'}</>
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center space-y-2">
-            {mode === 'login' && (
-              <p className="text-slate-500 text-xs">
-                <button onClick={() => { setMode('forgot'); setError(null); setMessage(null) }} className="text-slate-400 hover:text-cyan-400">
-                  Forgot password?
-                </button>
-              </p>
-            )}
-            <p className="text-slate-500 text-xs">
-              {mode === 'forgot' ? 'Remember it? ' : mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-              <button
-                onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setMessage(null) }}
-                className="text-cyan-400 hover:text-cyan-300 font-medium"
-              >
-                {mode === 'forgot' ? 'Sign in' : mode === 'login' ? 'Sign up free' : 'Sign in'}
-              </button>
+          <div className="mt-8 space-y-4">
+            <h1 className="text-3xl font-bold leading-tight text-white max-w-md">
+              Precision Clinical Assessment &amp;{' '}
+              <span className="bg-gradient-to-br from-[#4cd7f6] to-[#0053db] bg-clip-text text-transparent">
+                OSPE Simulation
+              </span>
+            </h1>
+            <p className="text-slate-400 max-w-sm leading-relaxed">
+              Access the industry standard for high-fidelity objective structured clinical examinations. Precision data for the modern resident.
             </p>
           </div>
         </div>
 
-        {/* Features */}
-        <div className="grid grid-cols-3 gap-3 mt-6">
-          {[
-            { icon: '📚', label: 'All Subjects' },
-            { icon: '⏱️', label: '5-min Stations' },
-            { icon: '📈', label: 'Track Progress' },
-          ].map(f => (
-            <div key={f.label} className="bg-slate-900/40 border border-slate-700/30 rounded-xl p-3 text-center">
-              <div className="text-xl mb-1">{f.icon}</div>
-              <p className="text-slate-400 text-xs">{f.label}</p>
-            </div>
-          ))}
-        </div>
+        {/* Auth Card: Right */}
+        <div className="flex flex-col justify-center items-center py-12 w-full">
+          <div className="w-full max-w-md">
+            <div className="bg-[rgba(22,29,47,0.7)] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] w-full rounded-2xl overflow-hidden p-8 transition-all hover:shadow-2xl hover:shadow-cyan-500/5">
+              {/* Card Header */}
+              <div className="text-center mb-8">
+                <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-[#4cd7f6] to-[#0053db] items-center justify-center mb-4 shadow-lg shadow-cyan-500/20">
+                  <Microscope className="w-8 h-8 text-[#003640]" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-1">OSPE Study Helper</h2>
+                <p className="text-xs font-medium text-[#4cd7f6] tracking-widest uppercase opacity-80">
+                  IMS — Integrated Medical Sciences
+                </p>
+              </div>
 
-        {/* Footer */}
-        <p className="text-center text-slate-600 text-xs mt-6">Made by Dr. Alhassan #44</p>
-      </div>
+              {/* Tabs */}
+              {mode !== 'forgot' ? (
+                <div className="flex border-b border-white/10 mb-8">
+                  {(['login', 'signup'] as Mode[]).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => { setMode(m); setError(null); setMessage(null) }}
+                      className={`flex-1 py-3 text-sm font-medium transition-all ${
+                        mode === m
+                          ? 'text-[#4cd7f6] border-b-2 border-[#4cd7f6]'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {m === 'login' ? 'Sign In' : 'Sign Up'}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <h2 className="text-white font-semibold text-lg mb-6">Reset Password</h2>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {mode === 'signup' && (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-400 ml-1">Full Name</label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={e => setFullName(e.target.value)}
+                        required
+                        placeholder="Dr. Ahmed Al-Farsi"
+                        className="w-full bg-[#0A0F1E] border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#4cd7f6]/50 focus:border-[#4cd7f6] transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-slate-400 ml-1">Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
+                      placeholder="student@university.edu.sa"
+                      className="w-full bg-[#0A0F1E] border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#4cd7f6]/50 focus:border-[#4cd7f6] transition-all"
+                    />
+                  </div>
+                </div>
+
+                {mode !== 'forgot' && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center px-1">
+                      <label className="block text-xs font-medium text-slate-400">Password</label>
+                      {mode === 'login' && (
+                        <button
+                          type="button"
+                          onClick={() => { setMode('forgot'); setError(null); setMessage(null) }}
+                          className="text-xs text-[#4cd7f6] hover:underline"
+                        >
+                          Forgot?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        required
+                        minLength={6}
+                        placeholder="Minimum 6 characters"
+                        className="w-full bg-[#0A0F1E] border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#4cd7f6]/50 focus:border-[#4cd7f6] transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+                    <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                    <p className="text-red-400 text-xs">{error}</p>
+                  </div>
+                )}
+
+                {message && (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
+                    <p className="text-green-400 text-xs">{message}</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-br from-[#4cd7f6] to-[#0053db] text-[#003640] font-semibold py-4 rounded-xl shadow-xl shadow-cyan-500/10 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 group"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {mode === 'login' ? 'Signing in...' : mode === 'forgot' ? 'Sending...' : 'Creating account...'}
+                    </>
+                  ) : (
+                    <>
+                      {mode === 'login' ? 'Sign In' : mode === 'forgot' ? 'Send Reset Email' : 'Create Account'}
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center space-y-2">
+                <p className="text-slate-500 text-xs">
+                  {mode === 'forgot' ? 'Remember it? ' : mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+                  <button
+                    onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setMessage(null) }}
+                    className="text-[#4cd7f6] hover:text-cyan-300 font-medium"
+                  >
+                    {mode === 'forgot' ? 'Sign in' : mode === 'login' ? 'Sign up free' : 'Sign in'}
+                  </button>
+                </p>
+              </div>
+            </div>
+
+            {/* Features */}
+            <div className="grid grid-cols-3 gap-3 mt-6">
+              {[
+                { icon: '📚', label: 'All Subjects' },
+                { icon: '⏱️', label: '5-min Stations' },
+                { icon: '📈', label: 'Track Progress' },
+              ].map(f => (
+                <div key={f.label} className="bg-[rgba(22,29,47,0.7)] border border-white/10 rounded-xl p-3 text-center">
+                  <div className="text-xl mb-1">{f.icon}</div>
+                  <p className="text-slate-400 text-xs">{f.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <p className="text-center text-slate-600 text-xs mt-6">Made by Dr. Alhassan #44</p>
+          </div>
+        </div>
+      </main>
     </div>
   )
 }
