@@ -102,7 +102,7 @@ export default function GlossaryCardHost() {
         >
           <div className="flex items-center gap-2">
             <GripHorizontal className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="w-5 h-5 rounded-md bg-blue-700 text-white text-[11px] font-bold flex items-center justify-center shrink-0">W</div>
+            <div className="w-5 h-5 rounded-md bg-red-700 text-white text-[11px] font-bold flex items-center justify-center shrink-0">CC</div>
             <div className="text-base font-semibold text-slate-900 capitalize leading-tight">{term}</div>
           </div>
           <button onClick={closeCard} className="text-slate-400 hover:text-slate-600 text-base leading-none">✕</button>
@@ -121,7 +121,7 @@ export default function GlossaryCardHost() {
           )}
           {!loading && result === null && (
             <div className="text-base leading-relaxed text-slate-500">
-              No Wikipedia entry found for this term.
+              No Cleveland Clinic entry found for this term.
             </div>
           )}
           {!loading && result && (
@@ -138,7 +138,7 @@ export default function GlossaryCardHost() {
             rel="noopener noreferrer"
             className="flex items-center gap-1 text-base font-medium text-blue-700 hover:text-blue-600 bg-slate-50 px-4 py-2.5 border-t border-slate-100"
           >
-            Read more on Wikipedia <ExternalLink className="w-4 h-4" />
+            Read more on Cleveland Clinic <ExternalLink className="w-4 h-4" />
           </a>
         )}
       </div>

@@ -40,7 +40,7 @@ interface Props {
 }
 
 // Underlines recognized medical terms. Clicking any term opens a single shared,
-// draggable card (touch-friendly) with a definition + photo fetched from Wikipedia.
+// draggable card (touch-friendly) with a definition + photo fetched from Cleveland Clinic.
 // The card remembers wherever you last dragged it and reopens there next time.
 export default function AmbossText({ text }: Props) {
   if (!text) return null
