@@ -82,12 +82,12 @@ export default function AuthPage() {
           <div className="relative w-full h-[500px]">
             <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-blue-600/5 to-transparent rounded-3xl blur-2xl" />
             {/* Floating info chips */}
-            <div className="absolute top-1/4 left-0 bg-[rgba(22,29,47,0.7)] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-4 rounded-xl border-l-4 border-l-[#4cd7f6]">
+            <div className="absolute top-1/4 left-0 bg-[rgba(22,29,47,0.7)] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-4 rounded-xl">
               <p className="text-xs text-[#4cd7f6] uppercase tracking-widest mb-1">Active Module</p>
               <p className="text-lg font-semibold text-white">Musculoskeletal Lab</p>
               <p className="text-xs text-slate-400">Anatomy Rotation: Block 02</p>
             </div>
-            <div className="absolute bottom-1/4 right-0 bg-[rgba(22,29,47,0.7)] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-4 rounded-xl border-r-4 border-r-[#b4c5ff]">
+            <div className="absolute bottom-1/4 right-0 bg-[rgba(22,29,47,0.7)] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] p-4 rounded-xl">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#4cd7f6] animate-pulse" />
                 <p className="text-sm text-white">System Status: Synchronized</p>
@@ -97,7 +97,7 @@ export default function AuthPage() {
           <div className="mt-8 space-y-4">
             <h1 className="text-3xl font-bold leading-tight text-white max-w-md">
               Precision Clinical Assessment &amp;{' '}
-              <span className="bg-gradient-to-br from-[#4cd7f6] to-[#0053db] bg-clip-text text-transparent">
+              <span className="text-[#4cd7f6]">
                 OSPE Simulation
               </span>
             </h1>

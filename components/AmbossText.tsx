@@ -27,7 +27,7 @@ function TermHighlight({ term }: { term: string }) {
       ref={anchorRef}
       type="button"
       onClick={handleClick}
-      className="cursor-pointer border-b-2 border-dotted text-inherit hover:bg-blue-900/15 transition-colors rounded-sm bg-transparent p-0 m-0 font-inherit"
+      className="cursor-pointer border-b-2 border-dotted text-inherit hover:bg-blue-900/15 transition-colors bg-transparent p-0 m-0 font-inherit"
       style={{ borderColor: '#1d4ed8' }}
     >
       {term}
