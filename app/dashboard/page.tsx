@@ -22,7 +22,7 @@ function SubjectCard({ subject, getSubjectBg, getProgressColor }: {
   return (
     <Link
       href={`/subjects/${subject.id}`}
-      className={`group relative bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-xl p-5 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10`}
+      className={`group relative block bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-xl p-5 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10`}
     >
       <div className="flex items-center justify-between mb-3">
         <BookOpen className="w-6 h-6 text-white/80" />
