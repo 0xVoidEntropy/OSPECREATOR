@@ -243,9 +243,10 @@ export default function AdminPage() {
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1.5">Block folder</label>
               <div
-                className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors duration-200 group ${subjectCount ? 'border-violet-500/60 bg-violet-500/5' : 'border-violet-500/30 hover:border-violet-500/60'} ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`relative overflow-hidden border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors duration-200 group ${subjectCount ? 'border-violet-500/60 bg-violet-500/5' : 'border-violet-500/30 hover:border-violet-500/60'} ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={() => !processing && document.getElementById('folder-input')?.click()}
               >
+                {!subjectCount && <div className="absolute inset-0 clinical-overlay opacity-20 pointer-events-none" />}
                 <input id="folder-input" type="file" accept=".pdf,.docx"
                   {...{ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>}
                   multiple onChange={handleFolderSelect} className="hidden" disabled={processing} />
@@ -259,8 +260,8 @@ export default function AdminPage() {
               {subjectCount > 0 && (
                 <div className="mt-4 space-y-3">
                   <div className="flex items-center justify-between animate-fade-rise-in">
-                    <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Detected {subjectCount} subject(s)</p>
-                    <span className="px-3 py-1 bg-violet-500/10 text-violet-300 rounded-full text-xs font-medium">{fileCount} file(s) queued</span>
+                    <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Detected <span className="font-mono-clinical">{subjectCount}</span> subject(s)</p>
+                    <span className="font-mono-clinical px-3 py-1 bg-violet-500/10 text-violet-300 rounded-md text-xs font-medium">{fileCount} file(s) queued</span>
                   </div>
                   {Object.entries(preview).sort().map(([subj, fnames], idx) => (
                     <div
@@ -268,13 +269,13 @@ export default function AdminPage() {
                       className="bg-[#161D2F] border border-white/5 rounded-xl px-4 py-3 flex items-start gap-3 animate-fade-rise-in"
                       style={{ animationDelay: `${Math.min(idx * 40, 320)}ms` }}
                     >
-                      <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0 text-base">
+                      <div className="w-9 h-9 rounded-md bg-violet-500/10 flex items-center justify-center shrink-0 text-base">
                         {SUBJECT_ICONS[subj.toLowerCase()] || '📁'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-white text-sm font-medium mb-1">
                           {subj}
-                          <span className="text-slate-500 text-xs font-normal ml-2">{fnames.length} file(s)</span>
+                          <span className="font-mono-clinical text-slate-500 text-xs font-normal ml-2">{fnames.length} file(s)</span>
                         </p>
                         <div className="space-y-0.5">
                           {fnames.map((n, i) => <p key={i} className="text-slate-500 text-xs truncate">· {n}</p>)}
@@ -287,8 +288,8 @@ export default function AdminPage() {
             </div>
 
             <button type="submit" disabled={processing || !fileCount || !block.trim()}
-              className="press-scale w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-[#6D28D9] hover:from-violet-400 hover:to-[#7c3aed] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 transition-all duration-200">
-              {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><Database className="w-4 h-4" /> Import {fileCount || 0} file(s)</>}
+              className="press-scale w-full flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 transition-colors duration-200">
+              {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><Database className="w-4 h-4" /> Import <span className="font-mono-clinical">{fileCount || 0}</span> file(s)</>}
             </button>
           </form>
 
@@ -304,7 +305,7 @@ export default function AdminPage() {
               </div>
               <div className="p-4 space-y-4">
                 {currentJob && (
-                  <div className="bg-[#161D2F] border border-violet-500/20 rounded-xl p-4 animate-fade-rise-in">
+                  <div className="bg-[#161D2F] border border-violet-500/20 rounded-lg p-4 animate-fade-rise-in">
                     <p className="text-violet-400 text-sm font-medium mb-2">Extracting slides: {currentJob.fileName}</p>
                     <PdfProcessor
                       lectureId={currentJob.lectureId}
@@ -336,13 +337,14 @@ export default function AdminPage() {
           <div className="glass-panel rounded-2xl p-6 border border-white/10 flex flex-col h-full">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-semibold text-white">All Lectures</h2>
-              <span className="px-3 py-1 bg-violet-500/10 text-violet-300 rounded-full text-xs font-medium">{allLectures.length} total</span>
+              <span className="font-mono-clinical px-3 py-1 bg-violet-500/10 text-violet-300 rounded-md text-xs font-medium">{allLectures.length} total</span>
             </div>
 
             {!allLectures.length ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center py-10">
-                <Info className="w-8 h-8 text-slate-600 mb-2" />
-                <p className="text-slate-500 text-sm">No lectures uploaded yet.</p>
+              <div className="relative overflow-hidden flex-1 flex flex-col items-center justify-center text-center py-10 rounded-xl">
+                <div className="absolute inset-0 clinical-overlay opacity-20 pointer-events-none" />
+                <Info className="w-8 h-8 text-slate-600 mb-2 relative" />
+                <p className="text-slate-500 text-sm relative">No lectures uploaded yet.</p>
               </div>
             ) : (
               <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-1">
@@ -356,7 +358,7 @@ export default function AdminPage() {
                       <p className="text-white text-sm font-medium truncate">{l.title}</p>
                       <p className="text-slate-500 text-xs flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3 text-emerald-400/70" />
-                        {l.questionCount} question(s) generated · {new Date(l.created_at).toLocaleDateString()}
+                        <span className="font-mono-clinical">{l.questionCount}</span> question(s) generated · <span className="font-mono-clinical">{new Date(l.created_at).toLocaleDateString()}</span>
                       </p>
                     </Link>
                     <div className="flex items-center gap-3 ml-3 shrink-0">

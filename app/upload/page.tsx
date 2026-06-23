@@ -202,11 +202,12 @@ export default function UploadPage() {
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">PDF File</label>
                   <div
-                    className={`group border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors duration-200 ${
+                    className={`group relative overflow-hidden border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors duration-200 ${
                       file ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-slate-600/50 hover:border-slate-500/50'
                     }`}
                     onClick={() => document.getElementById('file-input')?.click()}
                   >
+                    {!file && <div className="absolute inset-0 clinical-overlay opacity-20 pointer-events-none" />}
                     <input
                       id="file-input"
                       type="file"
@@ -349,10 +350,11 @@ export default function UploadPage() {
           <div>
             <h2 className="font-semibold text-white mb-4">Uploaded Lectures</h2>
             {lectures.length === 0 ? (
-              <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-8 text-center">
-                <FileText className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-500 text-sm">No lectures yet</p>
-                <p className="text-slate-600 text-xs mt-1">Upload a PDF to get started</p>
+              <div className="relative overflow-hidden bg-slate-900/60 border border-slate-700/40 rounded-2xl p-8 text-center">
+                <div className="absolute inset-0 clinical-overlay opacity-20 pointer-events-none" />
+                <FileText className="w-10 h-10 text-slate-600 mx-auto mb-3 relative" />
+                <p className="text-slate-500 text-sm relative">No lectures yet</p>
+                <p className="text-slate-600 text-xs mt-1 relative">Upload a PDF to get started</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -364,7 +366,7 @@ export default function UploadPage() {
                       className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 flex items-center gap-3 animate-fade-rise-in"
                       style={{ animationDelay: `${Math.min(idx * 40, 320)}ms` }}
                     >
-                      <div className="w-9 h-9 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 bg-slate-800 border border-white/5 rounded-md flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4 text-slate-400" />
                       </div>
                       <div className="flex-1 min-w-0">

@@ -22,11 +22,11 @@ function SubjectCard({ subject, getSubjectBg, getProgressColor }: {
   return (
     <Link
       href={`/subjects/${subject.id}`}
-      className={`group relative bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-2xl p-5 transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10`}
+      className={`group relative bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-xl p-5 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10`}
     >
       <div className="flex items-center justify-between mb-3">
         <BookOpen className="w-6 h-6 text-white/80" />
-        <span className="text-xs font-medium text-slate-300 bg-slate-900/40 px-2 py-0.5 rounded-full">
+        <span className="font-[family-name:var(--font-mono)] tabular-nums text-xs font-medium text-slate-300 bg-slate-900/50 border border-white/10 px-2 py-0.5 rounded-md">
           {subject.answered}/{subject.total}
         </span>
       </div>
@@ -35,14 +35,14 @@ function SubjectCard({ subject, getSubjectBg, getProgressColor }: {
       {/* Fill animates via transform: scaleX instead of width — both transform/opacity stay
           GPU-only, and the parent's overflow-hidden + rounded-full clip the scaled fill cleanly.
           700ms ease-in-out is the documented progress-fill exception (constant/moving-on-screen). */}
-      <div className="h-1.5 bg-slate-900/40 rounded-full overflow-hidden mt-3">
+      <div className="h-1.5 bg-slate-900/40 rounded-md overflow-hidden mt-3">
         <div
-          className={`h-full w-full ${getProgressColor(subject.color)} rounded-full origin-left transition-transform duration-700`}
+          className={`h-full w-full ${getProgressColor(subject.color)} rounded-md origin-left transition-transform duration-700`}
           style={{ transform: `scaleX(${percent / 100})`, transitionTimingFunction: 'var(--ease-in-out-strong)' }}
         />
       </div>
       <div className="flex items-center justify-between mt-2">
-        <span className="text-slate-500 text-xs">{subject.total} question(s)</span>
+        <span className="font-[family-name:var(--font-mono)] tabular-nums text-slate-500 text-xs">{subject.total} question(s)</span>
         <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform" />
       </div>
     </Link>
@@ -195,21 +195,22 @@ export default function Dashboard() {
         </div>
 
         {/* Overall stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="relative grid grid-cols-3 gap-4 mb-8">
+          <div className="clinical-overlay absolute inset-0 -z-10 rounded-2xl opacity-60" />
           {[
             { label: 'Total Questions', value: totalStats.total, icon: BookOpen, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
             { label: 'Answered', value: totalStats.answered, icon: Trophy, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { label: 'Progress', value: `${overallPercent}%`, icon: TrendingUp, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+            { label: 'Progress', value: `${overallPercent}%`, icon: TrendingUp, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
           ].map((s, i) => (
             <div
               key={s.label}
-              className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4 animate-fade-rise-in"
+              className="bg-slate-900/60 border border-white/10 rounded-xl p-4 shadow-[0_2px_12px_rgba(2,8,23,0.5)] animate-fade-rise-in"
               style={{ animationDelay: `${i * 40}ms` }}
             >
-              <div className={`w-9 h-9 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
+              <div className={`w-9 h-9 ${s.bg} rounded-lg flex items-center justify-center mb-3`}>
                 <s.icon className={`w-4 h-4 ${s.color}`} />
               </div>
-              <p className="text-2xl font-bold text-white">{s.value}</p>
+              <p className="font-[family-name:var(--font-mono)] tabular-nums text-2xl font-bold text-white">{s.value}</p>
               <p className="text-slate-500 text-xs mt-0.5">{s.label}</p>
             </div>
           ))}
@@ -225,17 +226,17 @@ export default function Dashboard() {
 
         {/* Admin: flat subject manager — delete any subject without drilling into folders */}
         {showManage && user?.email === ADMIN_EMAIL && (
-          <div className="bg-slate-900/60 border border-amber-500/30 rounded-2xl p-5 mb-8 animate-fade-rise-in">
+          <div className="bg-slate-900/60 border border-amber-500/30 rounded-xl p-5 mb-8 animate-fade-rise-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-white">Manage Subjects</h3>
               <button onClick={() => setShowManage(false)} className="text-slate-500 hover:text-white text-xs press-scale">Close</button>
             </div>
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
               {subjects.map(s => (
-                <div key={s.id} className="flex items-center gap-2 bg-slate-800/50 rounded-xl px-3 py-2.5">
+                <div key={s.id} className="flex items-center gap-2 bg-slate-800/50 border border-white/5 rounded-md px-3 py-2.5">
                   <span>{s.icon}</span>
                   <span className="text-sm text-white truncate">{s.name}</span>
-                  <span className="text-xs text-slate-500 shrink-0">
+                  <span className="font-[family-name:var(--font-mono)] tabular-nums text-xs text-slate-500 shrink-0">
                     {s.year != null ? `Y${s.year}` : '—'}{s.block ? ` · ${s.block}` : ''} · {s.total} q
                   </span>
                 </div>
@@ -246,17 +247,17 @@ export default function Dashboard() {
         )}
 
         {/* Overall progress bar */}
-        <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-5 mb-8">
+        <div className="bg-slate-900/60 border border-white/10 rounded-xl p-5 mb-8 shadow-[0_2px_12px_rgba(2,8,23,0.5)]">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-slate-300">Overall Progress</span>
-            <span className="text-sm font-bold text-cyan-400">{totalStats.answered} / {totalStats.total}</span>
+            <span className="font-[family-name:var(--font-mono)] tabular-nums text-sm font-bold text-cyan-400">{totalStats.answered} / {totalStats.total}</span>
           </div>
           {/* Fill animates via transform: scaleX (GPU-only) instead of width; the parent's
               overflow-hidden + rounded-full clip the scaled fill cleanly. 700ms ease-in-out is
               the documented progress-fill exception to the 300ms UI cap. */}
-          <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-2 bg-slate-800 rounded-md overflow-hidden">
             <div
-              className="h-full w-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full origin-left transition-transform duration-700"
+              className="h-full w-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-md origin-left transition-transform duration-700"
               style={{ transform: `scaleX(${overallPercent / 100})`, transitionTimingFunction: 'var(--ease-in-out-strong)' }}
             />
           </div>
@@ -272,10 +273,10 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <Link
             href="/simulation"
-            className="group bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 hover:border-cyan-400/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-cyan-500/10"
+            className="group bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 hover:border-cyan-400/50 rounded-xl p-6 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:shadow-lg hover:shadow-cyan-500/10"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 bg-cyan-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                 <Clock className="w-6 h-6 text-cyan-400" />
               </div>
               <div>
@@ -289,11 +290,11 @@ export default function Dashboard() {
           {user?.email === ADMIN_EMAIL && (
             <Link
               href="/admin"
-              className="group bg-gradient-to-r from-violet-500/20 to-purple-600/20 border border-violet-500/30 hover:border-violet-400/50 rounded-2xl p-6 transition-all duration-200 hover:shadow-lg hover:shadow-violet-500/10"
+              className="group bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/30 hover:border-amber-400/50 rounded-xl p-6 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:shadow-lg hover:shadow-amber-500/10"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-violet-500/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Upload className="w-6 h-6 text-violet-400" />
+                <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Upload className="w-6 h-6 text-amber-400" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white">Admin Import</h3>
@@ -340,18 +341,18 @@ export default function Dashboard() {
                     const answered = yearSubjects.reduce((a, s) => a + s.answered, 0)
                     return (
                       <button key={yr} onClick={() => setFolderYear(yr)}
-                        className="group bg-slate-900/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
+                        className="group bg-slate-900/60 border border-white/10 hover:border-cyan-500/40 rounded-xl p-5 text-left shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
                         style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}>
                         <Folder className="w-7 h-7 text-cyan-400 mb-3 group-hover:hidden" />
                         <FolderOpen className="w-7 h-7 text-cyan-400 mb-3 hidden group-hover:block" />
                         <h4 className="font-bold text-white">{yearLabel(yr)}</h4>
-                        <p className="text-slate-500 text-xs mt-1">{yearSubjects.length} subject(s) · {answered}/{total} done</p>
+                        <p className="text-slate-500 text-xs mt-1">{yearSubjects.length} subject(s) · <span className="font-[family-name:var(--font-mono)] tabular-nums">{answered}/{total}</span> done</p>
                       </button>
                     )
                   })}
                   {noYear.length > 0 && (
                     <button onClick={() => setFolderYear('other')}
-                      className="group bg-slate-900/60 border border-slate-700/40 hover:border-slate-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
+                      className="group bg-slate-900/60 border border-white/10 hover:border-slate-500/40 rounded-xl p-5 text-left shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
                       style={{ animationDelay: `${Math.min(years.length * 40, 320)}ms` }}>
                       <Folder className="w-7 h-7 text-slate-400 mb-3 group-hover:hidden" />
                       <FolderOpen className="w-7 h-7 text-slate-400 mb-3 hidden group-hover:block" />
@@ -389,12 +390,12 @@ export default function Dashboard() {
                     const answered = blockSubjects.reduce((a, s) => a + s.answered, 0)
                     return (
                       <button key={blk} onClick={() => setFolderBlock(blk)}
-                        className="group bg-slate-900/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
+                        className="group bg-slate-900/60 border border-white/10 hover:border-cyan-500/40 rounded-xl p-5 text-left shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
                         style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}>
-                        <Folder className="w-7 h-7 text-violet-400 mb-3 group-hover:hidden" />
-                        <FolderOpen className="w-7 h-7 text-violet-400 mb-3 hidden group-hover:block" />
+                        <Folder className="w-7 h-7 text-cyan-400 mb-3 group-hover:hidden" />
+                        <FolderOpen className="w-7 h-7 text-cyan-400 mb-3 hidden group-hover:block" />
                         <h4 className="font-bold text-white">{blk}</h4>
-                        <p className="text-slate-500 text-xs mt-1">{blockSubjects.length} subject(s) · {answered}/{total} done</p>
+                        <p className="text-slate-500 text-xs mt-1">{blockSubjects.length} subject(s) · <span className="font-[family-name:var(--font-mono)] tabular-nums">{answered}/{total}</span> done</p>
                       </button>
                     )
                   })}

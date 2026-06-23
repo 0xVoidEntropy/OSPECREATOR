@@ -194,23 +194,24 @@ export default function ReviewLecturePage() {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 text-cyan-500 animate-spin" /></div>
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-40">
+    <div className="min-h-screen bg-slate-900 relative">
+      <div className="absolute inset-0 clinical-overlay opacity-15 pointer-events-none" />
+      <div className="border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-40 relative">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <button onClick={() => router.push('/admin')} className="text-slate-400 hover:text-white transition-colors"><ArrowLeft className="w-5 h-5" /></button>
           <div>
             <h1 className="text-white font-bold">Review — {lectureTitle}</h1>
-            <p className="text-slate-500 text-xs">{questions.length} question(s) generated — edit text or drag a crop box, then Save</p>
+            <p className="text-slate-500 text-xs"><span className="font-mono-clinical">{questions.length}</span> question(s) generated — edit text or drag a crop box, then Save</p>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 relative">
         {!questions.length && <p className="text-slate-500 text-sm">No questions found for this lecture yet.</p>}
         {questions.map((q, qIdx) => (
-          <div key={q.id} className="bg-slate-800 border border-slate-700/40 rounded-2xl p-5 space-y-3 animate-fade-rise-in" style={{ animationDelay: `${Math.min(qIdx * 40, 320)}ms` }}>
+          <div key={q.id} className="bg-slate-800 border border-slate-700/40 rounded-2xl p-5 space-y-3 animate-fade-rise-in shadow-lg shadow-black/20" style={{ animationDelay: `${Math.min(qIdx * 40, 320)}ms` }}>
             <div className="flex items-center justify-between">
-              <span className="text-cyan-400 text-xs font-mono">Station {q.station_number}</span>
+              <span className="font-mono-clinical text-cyan-400 text-xs">Station {q.station_number}</span>
               <div className="flex items-center gap-2">
                 <button onClick={() => save(q)} disabled={!q.dirty || q.saving}
                   className="press-scale flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white transition-[opacity,background-color] duration-150">

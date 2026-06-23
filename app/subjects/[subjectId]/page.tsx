@@ -239,7 +239,7 @@ export default function SubjectPage() {
           </div>
           <div>
             <h1 className="text-white font-bold tracking-tight">{subject.name}</h1>
-            <p className="text-slate-500 text-xs">{answered} / {questions.length} answered</p>
+            <p className="text-slate-500 text-xs font-[family-name:var(--font-mono)] tabular-nums">{answered} / {questions.length} answered</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -263,15 +263,15 @@ export default function SubjectPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Progress */}
-        <div className={`glass-panel border ${colors.border} rounded-2xl p-5 mb-6`}>
+        <div className={`glass-panel border ${colors.border} rounded-xl p-5 mb-6 shadow-[0_2px_12px_rgba(2,8,23,0.5)]`}>
           <div className="flex items-center justify-between mb-2">
             <span className={`text-sm font-medium ${colors.text} uppercase tracking-widest`}>Subject Progress</span>
-            <span className="text-slate-200 text-sm font-bold">{answered} / {questions.length}</span>
+            <span className="font-[family-name:var(--font-mono)] tabular-nums text-slate-200 text-sm font-bold">{answered} / {questions.length}</span>
           </div>
-          <div className="h-2 bg-slate-800/80 rounded-full overflow-hidden">
+          <div className="h-2 bg-slate-800/80 rounded-md overflow-hidden">
             {/* scaleX fill (transform-origin: left) instead of width-transition — GPU-only, simple overflow-hidden bar */}
             <div
-              className="h-full w-full rounded-full origin-left transition-transform duration-700 ease-[var(--ease-in-out-strong)]"
+              className="h-full w-full rounded-md origin-left transition-transform duration-700 ease-[var(--ease-in-out-strong)]"
               style={{
                 transform: `scaleX(${questions.length ? answered / questions.length : 0})`,
                 background: subject.color,
@@ -301,7 +301,7 @@ export default function SubjectPage() {
                 return (
                   <div
                     key={lecture.id}
-                    className={`relative glass-panel border rounded-xl p-3 transition-all animate-fade-rise-in ${
+                    className={`relative glass-panel border rounded-lg p-3 shadow-[0_2px_10px_rgba(2,8,23,0.45)] transition-all animate-fade-rise-in ${
                       isActive ? 'border-[#4cd7f6]/60 bg-[#4cd7f6]/5' : done ? 'border-emerald-500/30' : 'border-white/10 hover:border-white/20'
                     }`}
                     style={{ animationDelay: `${Math.min(idx * 40, 320)}ms` }}
@@ -310,7 +310,7 @@ export default function SubjectPage() {
                       onClick={() => setActiveLab(isActive ? null : lecture.id)}
                       className="flex items-center gap-3 w-full text-left"
                     >
-                      <div className="w-9 h-9 bg-white/5 rounded-lg flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 bg-white/5 rounded-md flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4 text-[#4cd7f6]" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -318,13 +318,13 @@ export default function SubjectPage() {
                           {lecture.title}
                           {done && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
                         </p>
-                        <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden mt-1.5">
+                        <div className="h-1.5 bg-slate-800/80 rounded-md overflow-hidden mt-1.5">
                           <div
-                            className={`h-full w-full rounded-full origin-left transition-transform duration-700 ease-[var(--ease-in-out-strong)] ${done ? 'bg-emerald-500' : 'bg-[#4cd7f6]'}`}
+                            className={`h-full w-full rounded-md origin-left transition-transform duration-700 ease-[var(--ease-in-out-strong)] ${done ? 'bg-emerald-500' : 'bg-[#4cd7f6]'}`}
                             style={{ transform: `scaleX(${fill})` }}
                           />
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">{labAnswered}/{total} done{isActive ? ' · studying this lab' : ''}</p>
+                        <p className="font-[family-name:var(--font-mono)] tabular-nums text-xs text-slate-500 mt-1">{labAnswered}/{total} <span className="font-[family-name:var(--font-sans)]">done{isActive ? ' · studying this lab' : ''}</span></p>
                       </div>
                     </button>
                     {lecture.file_url && (
@@ -348,7 +348,7 @@ export default function SubjectPage() {
           <div className="flex gap-2 mb-5 overflow-x-auto pb-2">
             <button
               onClick={() => setActiveStation(null)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors press-scale ${
+              className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors press-scale ${
                 activeStation === null ? 'bg-gradient-to-r from-[#06b6d4] to-[#0053db] text-white' : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
               }`}
             >
@@ -358,27 +358,27 @@ export default function SubjectPage() {
               <button
                 key={s}
                 onClick={() => setActiveStation(activeStation === s ? null : s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors press-scale ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors press-scale ${
                   activeStation === s ? 'bg-gradient-to-r from-[#06b6d4] to-[#0053db] text-white' : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
                 }`}
               >
-                Station {stationDisplay.get(s)}
+                Station <span className="font-[family-name:var(--font-mono)] tabular-nums">{stationDisplay.get(s)}</span>
               </button>
             ))}
           </div>
         )}
 
         {/* Filter */}
-        <div className="flex p-1 bg-white/5 rounded-xl border border-white/10 w-fit mb-6">
+        <div className="flex p-1 bg-white/5 rounded-lg border border-white/10 w-fit mb-6">
           {(['all', 'unanswered', 'answered'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors press-scale ${
+              className={`px-4 py-1.5 rounded-md text-xs font-medium capitalize transition-colors press-scale ${
                 filter === f ? 'bg-gradient-to-r from-[#06b6d4] to-[#0053db] text-white' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {f} {f === 'all' ? `(${questions.length})` : f === 'answered' ? `(${answered})` : `(${questions.length - answered})`}
+              {f} <span className="font-[family-name:var(--font-mono)] tabular-nums">{f === 'all' ? `(${questions.length})` : f === 'answered' ? `(${answered})` : `(${questions.length - answered})`}</span>
             </button>
           ))}
         </div>
@@ -400,7 +400,7 @@ export default function SubjectPage() {
             return (
               <div
                 key={q.id}
-                className={`glass-panel border rounded-2xl overflow-hidden transition-colors duration-300 ${
+                className={`glass-panel border rounded-xl overflow-hidden shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-colors duration-300 ${
                   isAnswered ? 'border-emerald-500/30' : 'border-white/10 hover:border-[#4cd7f6]/40'
                 } ${firstMount ? 'animate-fade-rise-in' : ''}`}
                 style={firstMount ? { animationDelay: `${Math.min(qIdx * 40, 320)}ms` } : undefined}
@@ -409,11 +409,11 @@ export default function SubjectPage() {
                   {/* Badges */}
                   <div className="flex items-center gap-2 mb-3 flex-wrap">
                     {q.station_number && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors.badge}`}>
-                        Station {stationDisplay.get(q.station_number) ?? q.station_number}
+                      <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${colors.badge}`}>
+                        Station <span className="font-[family-name:var(--font-mono)] tabular-nums">{stationDisplay.get(q.station_number) ?? q.station_number}</span>
                       </span>
                     )}
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${
                       q.difficulty === 'hard' ? 'bg-red-500/20 text-red-300' :
                       q.difficulty === 'easy' ? 'bg-green-500/20 text-green-300' :
                       'bg-yellow-500/20 text-yellow-300'
@@ -421,7 +421,7 @@ export default function SubjectPage() {
                       {q.difficulty}
                     </span>
                     {isAnswered && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center gap-1 animate-fade-rise-in">
+                      <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 flex items-center gap-1 animate-fade-rise-in">
                         <CheckCircle className="w-3 h-3" /> Done
                       </span>
                     )}
@@ -494,7 +494,7 @@ export default function SubjectPage() {
                               )}
                             </div>
                             {subState.showHint && sq.hint && (
-                              <div className="mt-2 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                              <div className="mt-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
                                 <div className="flex items-center gap-2 mb-1">
                                   <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
                                   <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">Hint</span>
@@ -503,7 +503,7 @@ export default function SubjectPage() {
                               </div>
                             )}
                             {subState.showAnswer && sq.answer && (
-                              <div className="mt-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl p-3">
+                              <div className="mt-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-3">
                                 <div className="flex items-center gap-2 mb-1">
                                   <CheckCircle className="w-3.5 h-3.5 text-cyan-400" />
                                   <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">Model Answer</span>
@@ -576,7 +576,7 @@ export default function SubjectPage() {
                 {/* Hint (single-question stations only) */}
                 {!q.sub_questions && state.showHint && q.hint && (
                   <div className="px-5 pb-4 answer-reveal">
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
                         <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">Hint</span>
@@ -589,7 +589,7 @@ export default function SubjectPage() {
                 {/* Answer (single-question stations only) */}
                 {!q.sub_questions && state.showAnswer && q.answer && (
                   <div className="px-5 pb-5 answer-reveal">
-                    <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl p-4">
+                    <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <CheckCircle className="w-3.5 h-3.5 text-cyan-400" />
                         <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">Model Answer</span>
@@ -604,9 +604,10 @@ export default function SubjectPage() {
         </div>
 
         {filteredQuestions.length === 0 && (
-          <div className="text-center py-16 animate-fade-rise-in">
-            <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-            <p className="text-slate-400">No questions found</p>
+          <div className="relative text-center py-16 rounded-xl border border-white/10 overflow-hidden animate-fade-rise-in">
+            <div className="clinical-overlay absolute inset-0 opacity-50" />
+            <BookOpen className="relative w-12 h-12 text-slate-600 mx-auto mb-4" />
+            <p className="relative text-slate-400">No questions found</p>
           </div>
         )}
       </div>

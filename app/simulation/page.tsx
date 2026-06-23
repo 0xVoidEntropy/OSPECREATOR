@@ -295,16 +295,19 @@ function SimulationContent() {
           </div>
           <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest animate-fade-rise-in" style={{ animationDelay: '60ms' }}>OSPE Precision</span>
           <h2 className="text-3xl font-bold text-white mt-1 mb-2 animate-fade-rise-in" style={{ animationDelay: '100ms' }}>Station Complete!</h2>
-          <p className="text-slate-400 mb-8 animate-fade-rise-in" style={{ animationDelay: '140ms' }}>You've completed all {stationScores.length} stations</p>
+          <p className="text-slate-400 mb-8 animate-fade-rise-in" style={{ animationDelay: '140ms' }}>You've completed all <span className="font-mono-clinical">{stationScores.length}</span> stations</p>
 
-          <div className="glass-panel rounded-2xl p-6 mb-6 animate-fade-rise-in" style={{ animationDelay: '180ms' }}>
-            <div className="text-5xl font-bold text-cyan-400 mb-1">{grade25.toFixed(1)} / 25</div>
-            <p className="text-slate-400 text-sm">Weighted grade across all stations</p>
-            <div className="mt-4 h-2 bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className="h-full w-full origin-left bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-transform duration-1000 ease-in-out"
-                style={{ transform: `scaleX(${resultsRevealed ? (grade25 / 25) : 0})` }}
-              />
+          <div className="glass-panel rounded-2xl p-6 mb-6 animate-fade-rise-in relative overflow-hidden" style={{ animationDelay: '180ms' }}>
+            <div className="absolute inset-0 clinical-overlay opacity-30 pointer-events-none" />
+            <div className="relative">
+              <div className="font-mono-clinical text-5xl font-bold text-cyan-400 mb-1">{grade25.toFixed(1)} / 25</div>
+              <p className="text-slate-400 text-sm">Weighted grade across all stations</p>
+              <div className="mt-4 h-2 bg-slate-800 rounded-md overflow-hidden">
+                <div
+                  className="h-full w-full origin-left bg-cyan-500 rounded-md transition-transform duration-1000 ease-in-out"
+                  style={{ transform: `scaleX(${resultsRevealed ? (grade25 / 25) : 0})` }}
+                />
+              </div>
             </div>
           </div>
 
@@ -316,16 +319,16 @@ function SimulationContent() {
                 return (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg bg-slate-800/40 animate-fade-rise-in"
+                    className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-md bg-slate-800/40 border border-white/5 animate-fade-rise-in"
                     style={{ animationDelay: `${Math.min(i * 30, 480)}ms` }}
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`w-6 h-6 shrink-0 flex items-center justify-center rounded-md text-[10px] font-bold border ${ratioColor(ratio)}`}>
+                      <span className={`font-mono-clinical w-6 h-6 shrink-0 flex items-center justify-center rounded-md text-[10px] font-bold border ${ratioColor(ratio)}`}>
                         {i + 1}
                       </span>
                       <span className="text-slate-300 text-xs truncate">{(s.subjects as Subject | undefined)?.name || 'Station'}</span>
                     </div>
-                    <span className={`text-xs font-bold shrink-0 ${ratio === 1 ? 'text-emerald-400' : ratio === 0 ? 'text-red-400' : 'text-amber-400'}`}>
+                    <span className={`font-mono-clinical text-xs font-bold shrink-0 ${ratio === 1 ? 'text-emerald-400' : ratio === 0 ? 'text-red-400' : 'text-amber-400'}`}>
                       {Math.round(ratio * 100)}%
                     </span>
                   </div>
@@ -379,8 +382,9 @@ function SimulationContent() {
     })()
 
     return (
-      <div className="min-h-screen bg-[#0a0f1e] p-4 overflow-x-auto">
-        <div className="max-w-2xl mx-auto pt-8">
+      <div className="min-h-screen bg-[#0a0f1e] p-4 overflow-x-auto relative">
+        <div className="absolute inset-0 clinical-overlay opacity-20 pointer-events-none" />
+        <div className="max-w-2xl mx-auto pt-8 relative">
           <Link href="/dashboard" className="inline-flex items-center gap-2 text-slate-400 hover:text-cyan-400 mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </Link>
@@ -454,7 +458,7 @@ function SimulationContent() {
                 <div className="flex items-center justify-between bg-slate-800/60 rounded-xl px-4 py-3">
                   <div>
                     <p className="text-white text-sm font-medium">{yearLabel(folderYear)} · {folderBlock}</p>
-                    <p className="text-slate-500 text-xs">{randomCount} question(s) available, up to {MAX_STATIONS} stations</p>
+                    <p className="text-slate-500 text-xs"><span className="font-mono-clinical">{randomCount}</span> question(s) available, up to <span className="font-mono-clinical">{MAX_STATIONS}</span> stations</p>
                   </div>
                   <button onClick={() => setFolderBlock(null)} className="text-xs text-cyan-400 hover:text-cyan-300">Change</button>
                 </div>
@@ -489,7 +493,7 @@ function SimulationContent() {
                   </div>
                 ))}
               </div>
-              <p className="text-slate-500 text-xs mt-3">{customCount} question(s) available, up to {MAX_STATIONS} stations</p>
+              <p className="text-slate-500 text-xs mt-3"><span className="font-mono-clinical">{customCount}</span> question(s) available, up to <span className="font-mono-clinical">{MAX_STATIONS}</span> stations</p>
             </div>
           )}
 
@@ -537,9 +541,9 @@ function SimulationContent() {
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">OSPE Precision</span>
-                <span className="text-white text-sm font-semibold">Station {currentIdx + 1} of {stations.length}</span>
+                <span className="text-white text-sm font-semibold">Station <span className="font-mono-clinical">{currentIdx + 1}</span> of <span className="font-mono-clinical">{stations.length}</span></span>
               </div>
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono font-bold text-sm border transition-colors duration-300 ease ${
+              <div className={`font-mono-clinical flex items-center gap-2 px-3 py-1.5 rounded-md font-bold text-sm border transition-colors duration-300 ease ${
                 isUrgent
                   ? 'bg-red-500/20 text-red-400 border-red-500/30 timer-urgent'
                   : 'bg-slate-800/80 text-cyan-400 border-white/5'
@@ -548,9 +552,9 @@ function SimulationContent() {
                 {formatTime(timeLeft)}
               </div>
             </div>
-            <div className="mt-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+            <div className="mt-1 h-1 bg-slate-800 rounded-md overflow-hidden">
               <div
-                className="h-full w-full bg-slate-600 rounded-full origin-left transition-transform duration-300 ease-in-out"
+                className="h-full w-full bg-slate-600 rounded-md origin-left transition-transform duration-300 ease-in-out"
                 style={{ transform: `scaleX(${currentIdx / stations.length})` }}
               />
             </div>
@@ -570,7 +574,7 @@ function SimulationContent() {
                 type="button"
                 onClick={() => jumpToStation(i)}
                 title={`Station ${i + 1}${done ? ` — ${Math.round(ratio * 100)}%` : ''}`}
-                className={`press-scale w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold border transition-colors duration-200 ease cursor-pointer hover:brightness-125 ${colorClass} ${isCurrent ? 'ring-2 ring-cyan-400 scale-110 transition-transform duration-200 ease-out' : 'scale-100 transition-transform duration-200 ease-out'}`}
+                className={`font-mono-clinical press-scale w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold border transition-colors duration-200 ease cursor-pointer hover:brightness-125 ${colorClass} ${isCurrent ? 'ring-2 ring-cyan-400 scale-110 transition-transform duration-200 ease-out' : 'scale-100 transition-transform duration-200 ease-out'}`}
               >
                 {i + 1}
               </button>
@@ -585,15 +589,15 @@ function SimulationContent() {
           {/* Subject badge + ratio badge */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {currentQ.subjects && (
-              <span className="flex items-center gap-1.5 text-xs px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 rounded-full uppercase tracking-wider font-medium">
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 rounded-md uppercase tracking-wider font-medium">
                 <span className="text-base leading-none">{(currentQ.subjects as Subject).icon}</span>
                 {(currentQ.subjects as Subject).name}
               </span>
             )}
-            <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">
+            <span className="font-mono-clinical text-xs px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-white/5">
               Station {currentIdx + 1}
             </span>
-            <span className={`text-xs px-2 py-0.5 rounded border font-medium transition-colors duration-150 ease ${ratioColor(currentRatio)}`}>
+            <span className={`font-mono-clinical text-xs px-2 py-0.5 rounded-md border font-medium transition-colors duration-150 ease ${ratioColor(currentRatio)}`}>
               {subAnswers.filter(a => a === true).length} / {subAnswers.length} correct
             </span>
           </div>
