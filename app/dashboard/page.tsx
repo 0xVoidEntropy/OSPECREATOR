@@ -25,7 +25,7 @@ function SubjectCard({ subject, getSubjectBg, getProgressColor }: {
       className={`group relative block bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-xl p-5 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10`}
     >
       <div className="flex items-center justify-between mb-3">
-        <BookOpen className="w-6 h-6 text-white/80" />
+        <span className="text-2xl leading-none">{subject.icon}</span>
         <span className="font-[family-name:var(--font-mono)] tabular-nums text-xs font-medium text-slate-300 bg-slate-900/50 border border-white/10 px-2 py-0.5 rounded-md">
           {subject.answered}/{subject.total}
         </span>
