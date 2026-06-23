@@ -59,7 +59,7 @@ export default function Dashboard() {
   const [folderBlock, setFolderBlock] = useState<string | null>(null)
   const [showManage, setShowManage] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
-  const [translateOn, setTranslateOn] = useState(true)
+  const [translateOn, setTranslateOn] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 

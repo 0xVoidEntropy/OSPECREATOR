@@ -17,7 +17,7 @@ function setLang(lang: 'en' | 'ar') {
 }
 
 export default function TranslateButton({ className = '' }: { className?: string }) {
-  const [show, setShow] = useState(true)
+  const [show, setShow] = useState(false)
   const [active, setActive] = useState(false)
 
   useEffect(() => {

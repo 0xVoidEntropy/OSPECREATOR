@@ -2,7 +2,7 @@
 
 const SHOW_KEY = 'ospe_show_translate_v1'
 
-let showButtons = true
+let showButtons = false
 const listeners = new Set<(show: boolean) => void>()
 
 function emit() {
@@ -17,7 +17,7 @@ export function subscribeShowTranslate(listener: (show: boolean) => void) {
 export function getShowTranslate(): boolean {
   try {
     const raw = localStorage.getItem(SHOW_KEY)
-    showButtons = raw === null ? true : raw === '1'
+    showButtons = raw === null ? false : raw === '1'
   } catch { /* ignore */ }
   return showButtons
 }
