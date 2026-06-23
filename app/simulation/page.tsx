@@ -202,6 +202,13 @@ function SimulationContent() {
     }
   }
 
+  const jumpToStation = (i: number) => {
+    if (i === currentIdx) return
+    if (timerRef.current) clearInterval(timerRef.current)
+    setTimeLeft(STATION_DURATION)
+    setCurrentIdx(i)
+  }
+
   const handlePrevStation = () => {
     if (currentIdx > 0) {
       setCurrentIdx(prev => prev - 1)
@@ -558,13 +565,15 @@ function SimulationContent() {
             const ratio = done ? stationScores[i] : (isCurrent ? currentRatio : 0)
             const colorClass = done || isCurrent ? ratioColor(ratio) : 'bg-slate-800 text-slate-500 border-slate-700'
             return (
-              <span
+              <button
                 key={i}
+                type="button"
+                onClick={() => jumpToStation(i)}
                 title={`Station ${i + 1}${done ? ` — ${Math.round(ratio * 100)}%` : ''}`}
-                className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold border transition-colors duration-200 ease ${colorClass} ${isCurrent ? 'ring-2 ring-cyan-400 scale-110 transition-transform duration-200 ease-out' : 'scale-100 transition-transform duration-200 ease-out'}`}
+                className={`press-scale w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold border transition-colors duration-200 ease cursor-pointer hover:brightness-125 ${colorClass} ${isCurrent ? 'ring-2 ring-cyan-400 scale-110 transition-transform duration-200 ease-out' : 'scale-100 transition-transform duration-200 ease-out'}`}
               >
                 {i + 1}
-              </span>
+              </button>
             )
           })}
         </div>
@@ -595,7 +604,7 @@ function SimulationContent() {
             if (!img) return null
             const crop = currentQ.image_url ? currentQ.image_crop : null
             return (
-              <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 bg-slate-950 relative group shadow-2xl">
+              <div key={currentIdx} className="mb-4 rounded-2xl overflow-hidden border border-white/5 bg-slate-950 relative group shadow-2xl">
                 <button
                   type="button"
                   onClick={() => setZoomImage(img)}
@@ -605,13 +614,13 @@ function SimulationContent() {
                   <ZoomIn className="w-4 h-4" />
                 </button>
                 {crop ? (
-                  <CroppedImage src={img} crop={crop} alt={`Slide for station ${currentQ.station_number}`} />
+                  <CroppedImage key={img} src={img} crop={crop} alt={`Slide for station ${currentQ.station_number}`} />
                 ) : (
                   <img
+                    key={img}
                     src={img}
                     alt={`Slide for station ${currentQ.station_number}`}
                     className="w-full object-contain max-h-72 transition-transform duration-700 group-hover:scale-[1.02]"
-                    loading="lazy"
                   />
                 )}
               </div>
