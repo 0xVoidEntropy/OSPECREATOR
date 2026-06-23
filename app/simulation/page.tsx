@@ -57,6 +57,7 @@ function SimulationContent() {
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [zoomImage, setZoomImage] = useState<string | null>(null)
+  const [resultsRevealed, setResultsRevealed] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // mode + selection state
@@ -256,6 +257,16 @@ function SimulationContent() {
 
   const isUrgent = timeLeft <= 60
 
+  // Trigger the results grade-bar fill transition shortly after the results screen mounts
+  // (rare, once-per-exam reveal — a brief delay lets the entrance be visible before the fill animates).
+  useEffect(() => {
+    if (finished) {
+      setResultsRevealed(false)
+      const t = setTimeout(() => setResultsRevealed(true), 220)
+      return () => clearTimeout(t)
+    }
+  }, [finished])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -272,20 +283,20 @@ function SimulationContent() {
     return (
       <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-4">
         <div className="max-w-lg w-full text-center">
-          <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 glow-cyan">
+          <div className="w-20 h-20 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 glow-cyan animate-modal-in">
             <Trophy className="w-10 h-10 text-white" />
           </div>
-          <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">OSPE Precision</span>
-          <h2 className="text-3xl font-bold text-white mt-1 mb-2">Station Complete!</h2>
-          <p className="text-slate-400 mb-8">You've completed all {stationScores.length} stations</p>
+          <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest animate-fade-rise-in" style={{ animationDelay: '60ms' }}>OSPE Precision</span>
+          <h2 className="text-3xl font-bold text-white mt-1 mb-2 animate-fade-rise-in" style={{ animationDelay: '100ms' }}>Station Complete!</h2>
+          <p className="text-slate-400 mb-8 animate-fade-rise-in" style={{ animationDelay: '140ms' }}>You've completed all {stationScores.length} stations</p>
 
-          <div className="glass-panel rounded-2xl p-6 mb-6">
+          <div className="glass-panel rounded-2xl p-6 mb-6 animate-fade-rise-in" style={{ animationDelay: '180ms' }}>
             <div className="text-5xl font-bold text-cyan-400 mb-1">{grade25.toFixed(1)} / 25</div>
             <p className="text-slate-400 text-sm">Weighted grade across all stations</p>
             <div className="mt-4 h-2 bg-slate-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full"
-                style={{ width: `${(grade25 / 25) * 100}%` }}
+                className="h-full w-full origin-left bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-transform duration-1000 ease-in-out"
+                style={{ transform: `scaleX(${resultsRevealed ? (grade25 / 25) : 0})` }}
               />
             </div>
           </div>
@@ -296,7 +307,11 @@ function SimulationContent() {
               {stations.map((s, i) => {
                 const ratio = stationScores[i] ?? 0
                 return (
-                  <div key={s.id} className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg bg-slate-800/40">
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-lg bg-slate-800/40 animate-fade-rise-in"
+                    style={{ animationDelay: `${Math.min(i * 30, 480)}ms` }}
+                  >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`w-6 h-6 shrink-0 flex items-center justify-center rounded-md text-[10px] font-bold border ${ratioColor(ratio)}`}>
                         {i + 1}
@@ -315,13 +330,13 @@ function SimulationContent() {
           <div className="flex gap-3">
             <button
               onClick={reset}
-              className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-medium transition-colors"
+              className="press-scale flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-medium transition-colors duration-150 ease"
             >
               <RotateCcw className="w-4 h-4" /> Try Again
             </button>
             <Link
               href="/dashboard"
-              className="flex-1 flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-white py-3 rounded-xl font-medium transition-colors"
+              className="press-scale flex-1 flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-white py-3 rounded-xl font-medium transition-colors duration-150 ease"
             >
               Dashboard
             </Link>
@@ -376,7 +391,7 @@ function SimulationContent() {
           <div className="grid grid-cols-2 gap-3 mb-6">
             <button
               onClick={() => { setMode('random'); setFolderYear(null); setFolderBlock(null) }}
-              className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${mode === 'random' ? 'bg-cyan-500/15 border-cyan-500/50 shadow-lg shadow-cyan-500/10' : 'glass-panel border-slate-700/40 hover:border-slate-600'}`}
+              className={`press-scale flex items-center gap-3 p-4 rounded-2xl border transition-colors duration-200 ease-out ${mode === 'random' ? 'bg-cyan-500/15 border-cyan-500/50 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-500/30' : 'glass-panel border-slate-700/40 hover:border-slate-600'}`}
             >
               <Shuffle className="w-5 h-5 text-cyan-400" />
               <div className="text-left">
@@ -386,7 +401,7 @@ function SimulationContent() {
             </button>
             <button
               onClick={() => setMode('custom')}
-              className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${mode === 'custom' ? 'bg-cyan-500/15 border-cyan-500/50 shadow-lg shadow-cyan-500/10' : 'glass-panel border-slate-700/40 hover:border-slate-600'}`}
+              className={`press-scale flex items-center gap-3 p-4 rounded-2xl border transition-colors duration-200 ease-out ${mode === 'custom' ? 'bg-cyan-500/15 border-cyan-500/50 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-500/30' : 'glass-panel border-slate-700/40 hover:border-slate-600'}`}
             >
               <ListChecks className="w-5 h-5 text-cyan-400" />
               <div className="text-left">
@@ -403,7 +418,7 @@ function SimulationContent() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {years.map(yr => (
                     <button key={yr} onClick={() => setFolderYear(yr)}
-                      className="group bg-slate-800/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-xl p-4 text-left transition-all">
+                      className="press-scale group bg-slate-800/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-xl p-4 text-left transition-colors duration-150 ease-out">
                       <Folder className="w-5 h-5 text-cyan-400 mb-2 group-hover:hidden" />
                       <FolderOpen className="w-5 h-5 text-cyan-400 mb-2 hidden group-hover:block" />
                       <p className="font-medium text-white text-sm">{yearLabel(yr)}</p>
@@ -416,10 +431,10 @@ function SimulationContent() {
                   <button onClick={() => setFolderYear(null)} className="text-xs text-slate-400 hover:text-cyan-400 mb-3 inline-flex items-center gap-1">
                     <ArrowLeft className="w-3 h-3" /> Years
                   </button>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 animate-fade-rise-in">
                     {blocksForYear.map(blk => (
                       <button key={blk} onClick={() => setFolderBlock(blk)}
-                        className="group bg-slate-800/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-xl p-4 text-left transition-all">
+                        className="press-scale group bg-slate-800/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-xl p-4 text-left transition-colors duration-150 ease-out">
                         <Folder className="w-5 h-5 text-violet-400 mb-2 group-hover:hidden" />
                         <FolderOpen className="w-5 h-5 text-violet-400 mb-2 hidden group-hover:block" />
                         <p className="font-medium text-white text-sm">{blk}</p>
@@ -443,7 +458,7 @@ function SimulationContent() {
           {mode === 'custom' && (
             <div className="glass-panel rounded-2xl p-6 mb-6">
               <h3 className="font-semibold text-white mb-4">Select Subjects</h3>
-              <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+              <div className="space-y-4 max-h-80 overflow-y-auto pr-1 animate-fade-rise-in">
                 {customGroups.map(group => (
                   <div key={group.label}>
                     <p className="text-slate-500 text-xs uppercase tracking-wider font-medium mb-2">{group.label}</p>
@@ -456,7 +471,7 @@ function SimulationContent() {
                             if (next.has(s.id)) next.delete(s.id); else next.add(s.id)
                             return next
                           })}
-                          className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 ${
+                          className={`press-scale px-3 py-2 rounded-xl text-sm font-medium transition-colors duration-150 ease flex items-center gap-2 ${
                             customSelected.has(s.id) ? 'bg-cyan-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
                           }`}
                         >
@@ -478,7 +493,7 @@ function SimulationContent() {
               (mode === 'random' && (folderYear === null || folderBlock === null || randomCount === 0)) ||
               (mode === 'custom' && (customSelected.size === 0 || customCount === 0))
             }
-            className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl text-lg transition-all shadow-lg shadow-cyan-500/20"
+            className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl text-lg transition-[opacity,transform] duration-200 ease-out shadow-lg shadow-cyan-500/20 active:scale-[0.97] disabled:active:scale-100"
           >
             <Play className="w-5 h-5" /> Start Simulation
           </button>
@@ -492,11 +507,11 @@ function SimulationContent() {
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] flex flex-col overflow-x-auto">
-      {/* Timer bar */}
+      {/* Timer bar — scaleX fill shrinking from the right as time elapses (GPU transform, not width) */}
       <div className={`h-1 bg-slate-800 relative overflow-hidden`}>
         <div
-          className={`h-full transition-all duration-1000 ${isUrgent ? 'bg-red-500' : 'bg-cyan-500'}`}
-          style={{ width: `${(timeLeft / STATION_DURATION) * 100}%` }}
+          className={`h-full w-full origin-left transition-[transform,background-color] duration-[950ms] ease-linear ${isUrgent ? 'bg-red-500' : 'bg-cyan-500'}`}
+          style={{ transform: `scaleX(${timeLeft / STATION_DURATION})` }}
         />
       </div>
 
@@ -517,7 +532,7 @@ function SimulationContent() {
                 <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">OSPE Precision</span>
                 <span className="text-white text-sm font-semibold">Station {currentIdx + 1} of {stations.length}</span>
               </div>
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono font-bold text-sm border ${
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-mono font-bold text-sm border transition-colors duration-300 ease ${
                 isUrgent
                   ? 'bg-red-500/20 text-red-400 border-red-500/30 timer-urgent'
                   : 'bg-slate-800/80 text-cyan-400 border-white/5'
@@ -528,8 +543,8 @@ function SimulationContent() {
             </div>
             <div className="mt-1 h-1 bg-slate-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-slate-600 rounded-full"
-                style={{ width: `${((currentIdx) / stations.length) * 100}%` }}
+                className="h-full w-full bg-slate-600 rounded-full origin-left transition-transform duration-300 ease-in-out"
+                style={{ transform: `scaleX(${currentIdx / stations.length})` }}
               />
             </div>
           </div>
@@ -546,7 +561,7 @@ function SimulationContent() {
               <span
                 key={i}
                 title={`Station ${i + 1}${done ? ` — ${Math.round(ratio * 100)}%` : ''}`}
-                className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold border ${colorClass} ${isCurrent ? 'ring-2 ring-cyan-400' : ''}`}
+                className={`w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold border transition-colors duration-200 ease ${colorClass} ${isCurrent ? 'ring-2 ring-cyan-400 scale-110 transition-transform duration-200 ease-out' : 'scale-100 transition-transform duration-200 ease-out'}`}
               >
                 {i + 1}
               </span>
@@ -569,7 +584,7 @@ function SimulationContent() {
             <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">
               Station {currentIdx + 1}
             </span>
-            <span className={`text-xs px-2 py-0.5 rounded border font-medium ${ratioColor(currentRatio)}`}>
+            <span className={`text-xs px-2 py-0.5 rounded border font-medium transition-colors duration-150 ease ${ratioColor(currentRatio)}`}>
               {subAnswers.filter(a => a === true).length} / {subAnswers.length} correct
             </span>
           </div>
@@ -635,7 +650,7 @@ function SimulationContent() {
             {currentQ.hint && (
               <button
                 onClick={() => setShowHint(!showHint)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                className={`press-scale flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 ease ${
                   showHint
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                     : 'bg-slate-800 text-slate-400 hover:text-amber-300'
@@ -649,7 +664,7 @@ function SimulationContent() {
             {currentQ.answer && (
               <button
                 onClick={() => setShowAnswer(!showAnswer)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                className={`press-scale flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150 ease ${
                   showAnswer
                     ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                     : 'bg-slate-800 text-slate-400 hover:text-cyan-300'
@@ -670,13 +685,13 @@ function SimulationContent() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setSubAnswers(new Array(subCount).fill(true))}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-colors"
+                  className="press-scale flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 transition-colors duration-150 ease"
                 >
                   <CheckCheck className="w-3 h-3" /> Got it all
                 </button>
                 <button
                   onClick={() => setSubAnswers(new Array(subCount).fill(false))}
-                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors"
+                  className="press-scale flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 transition-colors duration-150 ease"
                 >
                   <XCircle className="w-3 h-3" /> Don't know any
                 </button>
@@ -695,7 +710,7 @@ function SimulationContent() {
                       {sq.answer && (
                         <button
                           onClick={() => setRevealedSubs(prev => prev.map((r, i) => i === idx ? !r : r))}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          className={`press-scale flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors duration-150 ease ${
                             revealedSubs[idx] ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30' : 'bg-slate-800 text-slate-400 hover:text-cyan-300'
                           }`}
                         >
@@ -704,13 +719,13 @@ function SimulationContent() {
                       )}
                       <button
                         onClick={() => setSubAnswers(prev => prev.map((a, i) => i === idx ? false : a))}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`press-scale px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-150 ease ${
                           subAnswers[idx] === false ? 'bg-red-500/30 text-red-300 border border-red-500/50' : 'bg-slate-800 text-slate-400 hover:bg-red-500/10'
                         }`}
                       >✗</button>
                       <button
                         onClick={() => setSubAnswers(prev => prev.map((a, i) => i === idx ? true : a))}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`press-scale px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-150 ease ${
                           subAnswers[idx] === true ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800 text-slate-400 hover:bg-emerald-500/10'
                         }`}
                       >✓</button>
@@ -731,13 +746,13 @@ function SimulationContent() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setSubAnswers([false])}
-                    className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+                    className={`press-scale flex-1 py-3 rounded-xl text-sm font-bold transition-colors duration-150 ease ${
                       subAnswers[0] === false ? 'bg-red-500/30 text-red-300 border-2 border-red-500/50' : 'bg-slate-800 text-slate-400 hover:bg-red-500/10 hover:text-red-300 border-2 border-transparent'
                     }`}
                   >✗ Missed it</button>
                   <button
                     onClick={() => setSubAnswers([true])}
-                    className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+                    className={`press-scale flex-1 py-3 rounded-xl text-sm font-bold transition-colors duration-150 ease ${
                       subAnswers[0] === true ? 'bg-emerald-500/30 text-emerald-300 border-2 border-emerald-500/50' : 'bg-slate-800 text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-300 border-2 border-transparent'
                     }`}
                   >✓ Got it!</button>
@@ -751,13 +766,13 @@ function SimulationContent() {
             <button
               onClick={handlePrevStation}
               disabled={currentIdx === 0}
-              className="flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors"
+              className="active:scale-[0.97] disabled:active:scale-100 flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-[background-color,opacity,transform] duration-150 ease-out"
             >
               <ChevronLeft className="w-4 h-4" /> Prev
             </button>
             <button
               onClick={handleNextStation}
-              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white py-3 rounded-xl text-sm font-bold transition-all"
+              className="press-scale flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white py-3 rounded-xl text-sm font-bold transition-colors duration-150 ease"
             >
               {currentIdx === stations.length - 1 ? 'Finish' : 'Next Station'}
               <ChevronRight className="w-4 h-4" />

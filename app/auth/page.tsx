@@ -191,7 +191,7 @@ export default function AuthPage() {
                         <button
                           type="button"
                           onClick={() => { setMode('forgot'); setError(null); setMessage(null) }}
-                          className="text-xs text-[#4cd7f6] hover:underline"
+                          className="text-xs text-[#4cd7f6] hover:underline transition-colors"
                         >
                           Forgot?
                         </button>
@@ -249,7 +249,7 @@ export default function AuthPage() {
                   {mode === 'forgot' ? 'Remember it? ' : mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
                   <button
                     onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setMessage(null) }}
-                    className="text-[#4cd7f6] hover:text-cyan-300 font-medium"
+                    className="text-[#4cd7f6] hover:text-cyan-300 font-medium transition-colors"
                   >
                     {mode === 'forgot' ? 'Sign in' : mode === 'login' ? 'Sign up free' : 'Sign in'}
                   </button>
@@ -263,8 +263,12 @@ export default function AuthPage() {
                 { icon: '📚', label: 'All Subjects' },
                 { icon: '⏱️', label: '5-min Stations' },
                 { icon: '📈', label: 'Track Progress' },
-              ].map(f => (
-                <div key={f.label} className="bg-[rgba(22,29,47,0.7)] border border-white/10 rounded-xl p-3 text-center">
+              ].map((f, i) => (
+                <div
+                  key={f.label}
+                  className="bg-[rgba(22,29,47,0.7)] border border-white/10 rounded-xl p-3 text-center animate-fade-rise-in"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
                   <div className="text-xl mb-1">{f.icon}</div>
                   <p className="text-slate-400 text-xs">{f.label}</p>
                 </div>

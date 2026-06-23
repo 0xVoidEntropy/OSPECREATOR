@@ -37,6 +37,9 @@ export default function SubjectPage() {
   const [filter, setFilter] = useState<'all' | 'unanswered' | 'answered'>('all')
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
   const [activeLecture, setActiveLecture] = useState<Lecture | null>(null)
+  // Stagger the question list only on the page's first paint — re-applying it on every
+  // filter/tab click (an occasional-but-frequent action) would feel slow and janky.
+  const [firstMount, setFirstMount] = useState(true)
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -71,6 +74,15 @@ export default function SubjectPage() {
   }, [subjectId, router, supabase])
 
   useEffect(() => { loadData() }, [loadData])
+
+  // Only the very first render of the list should stagger-in; subsequent filter/tab
+  // changes swap content instantly (no re-stagger) since those happen tens of times/day.
+  useEffect(() => {
+    if (!loading) {
+      const t = setTimeout(() => setFirstMount(false), 400)
+      return () => clearTimeout(t)
+    }
+  }, [loading])
 
   const toggleState = (qId: string, key: keyof QuestionState) => {
     setQuestionStates(prev => {
@@ -257,10 +269,11 @@ export default function SubjectPage() {
             <span className="text-slate-200 text-sm font-bold">{answered} / {questions.length}</span>
           </div>
           <div className="h-2 bg-slate-800/80 rounded-full overflow-hidden">
+            {/* scaleX fill (transform-origin: left) instead of width-transition — GPU-only, simple overflow-hidden bar */}
             <div
-              className="h-full rounded-full transition-all duration-700"
+              className="h-full w-full rounded-full origin-left transition-transform duration-700 ease-[var(--ease-in-out-strong)]"
               style={{
-                width: `${questions.length ? Math.round((answered / questions.length) * 100) : 0}%`,
+                transform: `scaleX(${questions.length ? answered / questions.length : 0})`,
                 background: subject.color,
               }}
             />
@@ -281,16 +294,17 @@ export default function SubjectPage() {
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {labStats.map(({ lecture, total, answered: labAnswered }) => {
+              {labStats.map(({ lecture, total, answered: labAnswered }, idx) => {
                 const done = total > 0 && labAnswered === total
                 const isActive = activeLab === lecture.id
-                const percent = total ? Math.round((labAnswered / total) * 100) : 0
+                const fill = total ? labAnswered / total : 0
                 return (
                   <div
                     key={lecture.id}
-                    className={`relative glass-panel border rounded-xl p-3 transition-all ${
+                    className={`relative glass-panel border rounded-xl p-3 transition-all animate-fade-rise-in ${
                       isActive ? 'border-[#4cd7f6]/60 bg-[#4cd7f6]/5' : done ? 'border-emerald-500/30' : 'border-white/10 hover:border-white/20'
                     }`}
+                    style={{ animationDelay: `${Math.min(idx * 40, 320)}ms` }}
                   >
                     <button
                       onClick={() => setActiveLab(isActive ? null : lecture.id)}
@@ -305,7 +319,10 @@ export default function SubjectPage() {
                           {done && <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
                         </p>
                         <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden mt-1.5">
-                          <div className={`h-full rounded-full ${done ? 'bg-emerald-500' : 'bg-[#4cd7f6]'}`} style={{ width: `${percent}%` }} />
+                          <div
+                            className={`h-full w-full rounded-full origin-left transition-transform duration-700 ease-[var(--ease-in-out-strong)] ${done ? 'bg-emerald-500' : 'bg-[#4cd7f6]'}`}
+                            style={{ transform: `scaleX(${fill})` }}
+                          />
                         </div>
                         <p className="text-xs text-slate-500 mt-1">{labAnswered}/{total} done{isActive ? ' · studying this lab' : ''}</p>
                       </div>
@@ -313,7 +330,7 @@ export default function SubjectPage() {
                     {lecture.file_url && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setActiveLecture(lecture) }}
-                        className="absolute top-2.5 right-2.5 text-slate-500 hover:text-[#4cd7f6]"
+                        className="absolute top-2.5 right-2.5 text-slate-500 hover:text-[#4cd7f6] press-scale"
                         title="View lecture PDF"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -331,7 +348,7 @@ export default function SubjectPage() {
           <div className="flex gap-2 mb-5 overflow-x-auto pb-2">
             <button
               onClick={() => setActiveStation(null)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors press-scale ${
                 activeStation === null ? 'bg-gradient-to-r from-[#06b6d4] to-[#0053db] text-white' : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
               }`}
             >
@@ -341,7 +358,7 @@ export default function SubjectPage() {
               <button
                 key={s}
                 onClick={() => setActiveStation(activeStation === s ? null : s)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors press-scale ${
                   activeStation === s ? 'bg-gradient-to-r from-[#06b6d4] to-[#0053db] text-white' : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
                 }`}
               >
@@ -357,7 +374,7 @@ export default function SubjectPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors press-scale ${
                 filter === f ? 'bg-gradient-to-r from-[#06b6d4] to-[#0053db] text-white' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -368,7 +385,7 @@ export default function SubjectPage() {
 
         {/* Questions */}
         <div className="space-y-5">
-          {filteredQuestions.map(q => {
+          {filteredQuestions.map((q, qIdx) => {
             const state = questionStates.get(q.id) || { showAnswer: false, showHint: false, showAddImage: false }
             const prog = progress.get(q.id)
             const isAnswered = prog?.answered
@@ -383,9 +400,10 @@ export default function SubjectPage() {
             return (
               <div
                 key={q.id}
-                className={`glass-panel border rounded-2xl overflow-hidden transition-all duration-300 ${
+                className={`glass-panel border rounded-2xl overflow-hidden transition-colors duration-300 ${
                   isAnswered ? 'border-emerald-500/30' : 'border-white/10 hover:border-[#4cd7f6]/40'
-                }`}
+                } ${firstMount ? 'animate-fade-rise-in' : ''}`}
+                style={firstMount ? { animationDelay: `${Math.min(qIdx * 40, 320)}ms` } : undefined}
               >
                 <div className="p-5">
                   {/* Badges */}
@@ -403,7 +421,7 @@ export default function SubjectPage() {
                       {q.difficulty}
                     </span>
                     {isAnswered && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center gap-1">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center gap-1 animate-fade-rise-in">
                         <CheckCircle className="w-3 h-3" /> Done
                       </span>
                     )}
@@ -451,7 +469,7 @@ export default function SubjectPage() {
                               {sq.hint && (
                                 <button
                                   onClick={() => toggleState(subKey, 'showHint')}
-                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors press-scale ${
                                     subState.showHint
                                       ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                                       : 'bg-white/5 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
@@ -464,7 +482,7 @@ export default function SubjectPage() {
                               {sq.answer && (
                                 <button
                                   onClick={() => toggleState(subKey, 'showAnswer')}
-                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors press-scale ${
                                     subState.showAnswer
                                       ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                                       : 'bg-white/5 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'
@@ -502,7 +520,7 @@ export default function SubjectPage() {
                       {q.hint && (
                         <button
                           onClick={() => toggleState(q.id, 'showHint')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors press-scale ${
                             state.showHint
                               ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
                               : 'bg-white/5 text-slate-400 hover:text-amber-300 hover:bg-amber-500/10'
@@ -515,7 +533,7 @@ export default function SubjectPage() {
                       {q.answer && (
                         <button
                           onClick={() => toggleState(q.id, 'showAnswer')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors press-scale ${
                             state.showAnswer
                               ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                               : 'bg-white/5 text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10'
@@ -532,7 +550,7 @@ export default function SubjectPage() {
                     <div className="ml-auto flex items-center gap-2">
                       <button
                         onClick={() => markAnswered(q.id, false)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors press-scale ${
                           isAnswered && prog?.correct === false
                             ? 'bg-red-500/20 text-red-300 border border-red-500/30'
                             : 'bg-white/5 text-slate-500 hover:text-red-300 hover:bg-red-500/10'
@@ -542,7 +560,7 @@ export default function SubjectPage() {
                       </button>
                       <button
                         onClick={() => markAnswered(q.id, true)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors press-scale ${
                           isAnswered && prog?.correct !== false
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                             : 'bg-white/5 text-slate-500 hover:text-emerald-300 hover:bg-emerald-500/10'
@@ -586,7 +604,7 @@ export default function SubjectPage() {
         </div>
 
         {filteredQuestions.length === 0 && (
-          <div className="text-center py-16">
+          <div className="text-center py-16 animate-fade-rise-in">
             <BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-4" />
             <p className="text-slate-400">No questions found</p>
           </div>

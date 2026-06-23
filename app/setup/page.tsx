@@ -97,13 +97,15 @@ export default function SetupPage() {
               <button
                 onClick={runSetup}
                 disabled={loading || !serviceKey.trim()}
-                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all"
+                className="press-scale w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition-all duration-200"
               >
-                {loading ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Setting up your database...</>
-                ) : (
-                  <><Settings className="w-4 h-4" /> Run Setup</>
-                )}
+                <span key={loading ? 'loading' : 'idle'} className="flex items-center gap-2 animate-fade-rise-in">
+                  {loading ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Setting up your database...</>
+                  ) : (
+                    <><Settings className="w-4 h-4" /> Run Setup</>
+                  )}
+                </span>
               </button>
             </div>
           </div>
@@ -111,7 +113,7 @@ export default function SetupPage() {
 
         {/* Results */}
         {result && (
-          <div className="space-y-4">
+          <div className="space-y-4 animate-fade-rise-in">
             <div className={`border rounded-2xl p-5 ${
               result.success
                 ? 'bg-emerald-500/10 border-emerald-500/30'
@@ -130,7 +132,11 @@ export default function SetupPage() {
               {result.steps.length > 0 && (
                 <div className="space-y-1.5 mb-4">
                   {result.steps.map((step, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs">
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 text-xs animate-fade-rise-in"
+                      style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}
+                    >
                       <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                       <span className="text-slate-300">{step.replace('✓ ', '')}</span>
                     </div>
@@ -162,7 +168,7 @@ export default function SetupPage() {
                 </div>
                 <a
                   href="/"
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 px-8 rounded-xl transition-all"
+                  className="press-scale inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 px-8 rounded-xl transition-all duration-200"
                 >
                   Go to the App →
                 </a>
@@ -172,7 +178,7 @@ export default function SetupPage() {
             {!result.success && (
               <button
                 onClick={() => setResult(null)}
-                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm transition-colors"
+                className="press-scale w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-sm transition-colors"
               >
                 Try Again
               </button>

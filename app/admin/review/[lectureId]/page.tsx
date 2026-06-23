@@ -104,7 +104,7 @@ function CropEditor({ imageUrl, crop, onChange }: { imageUrl: string; crop: Crop
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 items-start">
+    <div className="grid grid-cols-2 gap-3 items-start animate-fade-rise-in">
       <div
         ref={boxRef}
         className="relative w-full select-none cursor-crosshair border border-slate-700 rounded-lg overflow-hidden touch-none self-start"
@@ -207,16 +207,16 @@ export default function ReviewLecturePage() {
 
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {!questions.length && <p className="text-slate-500 text-sm">No questions found for this lecture yet.</p>}
-        {questions.map(q => (
-          <div key={q.id} className="bg-slate-800 border border-slate-700/40 rounded-2xl p-5 space-y-3">
+        {questions.map((q, qIdx) => (
+          <div key={q.id} className="bg-slate-800 border border-slate-700/40 rounded-2xl p-5 space-y-3 animate-fade-rise-in" style={{ animationDelay: `${Math.min(qIdx * 40, 320)}ms` }}>
             <div className="flex items-center justify-between">
               <span className="text-cyan-400 text-xs font-mono">Station {q.station_number}</span>
               <div className="flex items-center gap-2">
                 <button onClick={() => save(q)} disabled={!q.dirty || q.saving}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white">
+                  className="press-scale flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white transition-[opacity,background-color] duration-150">
                   {q.saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
                 </button>
-                <button onClick={() => remove(q.id)} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-300">
+                <button onClick={() => remove(q.id)} className="press-scale flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-300 transition-colors duration-150">
                   <Trash2 className="w-3 h-3" /> Delete
                 </button>
               </div>
@@ -238,12 +238,12 @@ export default function ReviewLecturePage() {
                 )}
                 <div className="flex items-center gap-3">
                   <button onClick={() => setCropEditingId(cropEditingId === q.id ? null : q.id)}
-                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-cyan-400">
+                    className="press-scale flex items-center gap-1 text-xs text-slate-400 hover:text-cyan-400 transition-colors duration-150">
                     <CropIcon className="w-3 h-3" /> {cropEditingId === q.id ? 'Done cropping' : 'Adjust crop'}
                   </button>
                   {q.image_crop && (
                     <button onClick={() => updateCrop(q.id, null)}
-                      className="text-xs text-slate-500 hover:text-red-400">
+                      className="press-scale text-xs text-slate-500 hover:text-red-400 transition-colors duration-150">
                       Clear crop
                     </button>
                   )}
@@ -254,18 +254,18 @@ export default function ReviewLecturePage() {
             <div>
               <label className="block text-xs text-slate-500 mb-1">Question</label>
               <textarea value={q.question_text} onChange={e => updateField(q.id, 'question_text', e.target.value)}
-                rows={3} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+                rows={3} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white transition-colors duration-150" />
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1">Answer (HTML allowed)</label>
               <textarea value={q.answer || ''} onChange={e => updateField(q.id, 'answer', e.target.value)}
-                rows={4} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+                rows={4} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white transition-colors duration-150" />
             </div>
             {!q.sub_questions?.length && (
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Hint</label>
                 <input value={q.hint || ''} onChange={e => updateField(q.id, 'hint', e.target.value)}
-                  className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+                  className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white transition-colors duration-150" />
               </div>
             )}
 
@@ -275,13 +275,13 @@ export default function ReviewLecturePage() {
                 {q.sub_questions.map((sq, idx) => (
                   <div key={idx} className="border-l-2 border-slate-700 pl-3 space-y-2">
                     <input value={sq.label} onChange={e => updateSubQuestion(q.id, idx, 'label', e.target.value)}
-                      placeholder="Label" className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-1.5 text-xs text-cyan-300" />
+                      placeholder="Label" className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-1.5 text-xs text-cyan-300 transition-colors duration-150" />
                     <textarea value={sq.question} onChange={e => updateSubQuestion(q.id, idx, 'question', e.target.value)}
-                      placeholder="Question" rows={2} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+                      placeholder="Question" rows={2} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white transition-colors duration-150" />
                     <input value={sq.hint} onChange={e => updateSubQuestion(q.id, idx, 'hint', e.target.value)}
-                      placeholder="Hint" className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+                      placeholder="Hint" className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white transition-colors duration-150" />
                     <textarea value={sq.answer} onChange={e => updateSubQuestion(q.id, idx, 'answer', e.target.value)}
-                      placeholder="Answer" rows={2} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white" />
+                      placeholder="Answer" rows={2} className="w-full bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white transition-colors duration-150" />
                   </div>
                 ))}
               </div>

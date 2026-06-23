@@ -94,7 +94,7 @@ export default function GlossaryCardHost() {
       className="fixed z-[100]"
       style={{ top: pos.top, left: pos.left, width: CARD_WIDTH }}
     >
-      <div className="bg-white text-slate-900 border border-slate-200 rounded-xl shadow-2xl shadow-black/40 overflow-hidden text-left">
+      <div className="bg-white text-slate-900 border border-slate-200 rounded-xl shadow-2xl shadow-black/40 overflow-hidden text-left animate-glossary-in">
         <div
           onMouseDown={(e) => beginDrag(e.clientX, e.clientY)}
           onTouchStart={(e) => { const t = e.touches[0]; if (t) beginDrag(t.clientX, t.clientY) }}
@@ -105,7 +105,7 @@ export default function GlossaryCardHost() {
             <div className="w-5 h-5 rounded-md bg-red-700 text-white text-[11px] font-bold flex items-center justify-center shrink-0">CC</div>
             <div className="text-base font-semibold text-slate-900 capitalize leading-tight">{term}</div>
           </div>
-          <button onClick={closeCard} className="text-slate-400 hover:text-slate-600 text-base leading-none">✕</button>
+          <button onClick={closeCard} className="press-scale text-slate-400 hover:text-slate-600 text-base leading-none transition-colors duration-150">✕</button>
         </div>
 
         {result?.image && (
@@ -136,7 +136,7 @@ export default function GlossaryCardHost() {
             href={result.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-base font-medium text-blue-700 hover:text-blue-600 bg-slate-50 px-4 py-2.5 border-t border-slate-100"
+            className="flex items-center gap-1 text-base font-medium text-blue-700 hover:text-blue-600 bg-slate-50 px-4 py-2.5 border-t border-slate-100 transition-colors duration-150"
           >
             Read more on Cleveland Clinic <ExternalLink className="w-4 h-4" />
           </a>

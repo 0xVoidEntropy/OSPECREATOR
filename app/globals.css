@@ -81,6 +81,29 @@ body {
   animation: overlay-in 200ms ease both;
 }
 
+/* Lightweight one-time fade for rapidly-appended log lines. Opacity-only
+   (no transform) so bursts of appends stay cheap; each line only ever
+   animates once on mount, so there's nothing to interrupt or retarget. */
+@keyframes log-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-log-fade-in {
+  animation: log-fade-in 180ms ease both;
+}
+
+/* Floating glossary card entrance — scales in from near-full size (never scale(0)).
+   Card is positioned via inline top/left (not a Radix-style anchored popover), so we
+   default to a simple non-center scale+fade rather than deriving click-relative origin. */
+@keyframes glossary-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-glossary-in {
+  transform-origin: top left;
+  animation: glossary-in 200ms var(--ease-out-strong) both;
+}
+
 /* Press feedback for any pressable element */
 .press-scale {
   transition: transform 140ms var(--ease-out-strong);

@@ -202,7 +202,7 @@ export default function UploadPage() {
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1.5">PDF File</label>
                   <div
-                    className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                    className={`group border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors duration-200 ${
                       file ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-slate-600/50 hover:border-slate-500/50'
                     }`}
                     onClick={() => document.getElementById('file-input')?.click()}
@@ -215,20 +215,20 @@ export default function UploadPage() {
                       className="hidden"
                     />
                     {file ? (
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-2 animate-fade-rise-in">
                         <FileText className="w-5 h-5 text-cyan-400" />
                         <span className="text-cyan-300 text-sm font-medium">{file.name}</span>
                         <button
                           type="button"
                           onClick={ev => { ev.stopPropagation(); setFile(null) }}
-                          className="text-slate-400 hover:text-white"
+                          className="text-slate-400 hover:text-white transition-colors press-scale"
                         >
                           <X className="w-4 h-4" />
                         </button>
                       </div>
                     ) : (
                       <>
-                        <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                        <Upload className="w-8 h-8 text-slate-500 mx-auto mb-2 transition-transform duration-200 group-hover:scale-105" />
                         <p className="text-slate-400 text-sm">Click to upload PDF</p>
                         <p className="text-slate-600 text-xs mt-1">Every slide will be extracted automatically</p>
                       </>
@@ -237,27 +237,27 @@ export default function UploadPage() {
                 </div>
 
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 animate-fade-rise-in">
                     <p className="text-red-400 text-xs">{error}</p>
                   </div>
                 )}
 
                 {processSuccess && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-2">
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-2 animate-fade-rise-in">
                     <Check className="w-4 h-4 text-emerald-400" />
                     <p className="text-emerald-400 text-xs">Slides extracted successfully!</p>
                   </div>
                 )}
 
                 {extractingQuestions && (
-                  <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3 flex items-center gap-2">
+                  <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl p-3 flex items-center gap-2 animate-fade-rise-in">
                     <Loader2 className="w-4 h-4 text-violet-400 animate-spin" />
                     <p className="text-violet-400 text-xs">AI is extracting questions from your slides...</p>
                   </div>
                 )}
 
                 {extractResult && (
-                  <div className={`border rounded-xl p-3 flex items-center gap-2 ${extractResult.startsWith('✓') ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
+                  <div key={extractResult} className={`border rounded-xl p-3 flex items-center gap-2 animate-fade-rise-in ${extractResult.startsWith('✓') ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
                     <p className={`text-xs ${extractResult.startsWith('✓') ? 'text-emerald-400' : 'text-amber-400'}`}>{extractResult}</p>
                   </div>
                 )}
@@ -265,7 +265,7 @@ export default function UploadPage() {
                 <button
                   type="submit"
                   disabled={uploading || !file || !title || !selectedSubject || !!processingJob}
-                  className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all"
+                  className="press-scale w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-400 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all duration-200"
                 >
                   {uploading ? (
                     <><Loader2 className="w-4 h-4 animate-spin" /> Uploading...</>
@@ -278,7 +278,7 @@ export default function UploadPage() {
 
             {/* PDF processing status */}
             {processingJob && (
-              <div className="bg-slate-900/60 border border-cyan-500/30 rounded-2xl p-5">
+              <div className="bg-slate-900/60 border border-cyan-500/30 rounded-2xl p-5 animate-fade-rise-in">
                 <div className="flex items-center gap-3 mb-3">
                   <Cpu className="w-5 h-5 text-cyan-400 animate-pulse" />
                   <div>
@@ -356,10 +356,14 @@ export default function UploadPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {lectures.map(lecture => {
+                {lectures.map((lecture, idx) => {
                   const sub = lecture.subjects as unknown as { name: string; icon: string }
                   return (
-                    <div key={lecture.id} className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 flex items-center gap-3">
+                    <div
+                      key={lecture.id}
+                      className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 flex items-center gap-3 animate-fade-rise-in"
+                      style={{ animationDelay: `${Math.min(idx * 40, 320)}ms` }}
+                    >
                       <div className="w-9 h-9 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4 text-slate-400" />
                       </div>
@@ -369,13 +373,13 @@ export default function UploadPage() {
                       </div>
                       {lecture.file_url && (
                         <a href={lecture.file_url} target="_blank" rel="noopener noreferrer"
-                          className="text-slate-500 hover:text-cyan-400 transition-colors">
+                          className="text-slate-500 hover:text-cyan-400 transition-colors press-scale">
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
                       <button
                         onClick={() => handleDelete(lecture)}
-                        className="text-slate-600 hover:text-red-400 transition-colors"
+                        className="text-slate-600 hover:text-red-400 transition-colors press-scale"
                         title="Delete lecture"
                       >
                         <Trash2 className="w-4 h-4" />

@@ -251,15 +251,18 @@ export default function Dashboard() {
             <span className="text-sm font-medium text-slate-300">Overall Progress</span>
             <span className="text-sm font-bold text-cyan-400">{totalStats.answered} / {totalStats.total}</span>
           </div>
+          {/* Fill animates via transform: scaleX (GPU-only) instead of width; the parent's
+              overflow-hidden + rounded-full clip the scaled fill cleanly. 700ms ease-in-out is
+              the documented progress-fill exception to the 300ms UI cap. */}
           <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-700"
-              style={{ width: `${overallPercent}%` }}
+              className="h-full w-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full origin-left transition-transform duration-700"
+              style={{ transform: `scaleX(${overallPercent / 100})`, transitionTimingFunction: 'var(--ease-in-out-strong)' }}
             />
           </div>
           <button
             onClick={handleResetAllProgress}
-            className="mt-4 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-red-500/15 hover:text-red-300 transition-colors"
+            className="mt-4 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-red-500/15 hover:text-red-300 transition-colors press-scale"
           >
             <RotateCcw className="w-3.5 h-3.5" /> Reset all progress
           </button>
@@ -308,13 +311,13 @@ export default function Dashboard() {
             <h3 className="text-lg font-bold text-white">Study by Subject</h3>
             {(folderYear !== null) && (
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <button onClick={() => { setFolderYear(null); setFolderBlock(null) }} className="hover:text-cyan-400 transition-colors flex items-center gap-1">
+                <button onClick={() => { setFolderYear(null); setFolderBlock(null) }} className="hover:text-cyan-400 transition-colors flex items-center gap-1 press-scale">
                   <ArrowLeft className="w-3 h-3" /> All Years
                 </button>
                 {folderBlock !== null && (
                   <>
                     <span className="text-slate-600">/</span>
-                    <button onClick={() => setFolderBlock(null)} className="hover:text-cyan-400 transition-colors">
+                    <button onClick={() => setFolderBlock(null)} className="hover:text-cyan-400 transition-colors press-scale">
                       {folderYear === 'other' ? 'Other' : yearLabel(folderYear)}
                     </button>
                   </>
@@ -331,13 +334,14 @@ export default function Dashboard() {
             if (folderYear === null) {
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {years.map(yr => {
+                  {years.map((yr, i) => {
                     const yearSubjects = withYear.filter(s => s.year === yr)
                     const total = yearSubjects.reduce((a, s) => a + s.total, 0)
                     const answered = yearSubjects.reduce((a, s) => a + s.answered, 0)
                     return (
                       <button key={yr} onClick={() => setFolderYear(yr)}
-                        className="group bg-slate-900/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02]">
+                        className="group bg-slate-900/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
+                        style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}>
                         <Folder className="w-7 h-7 text-cyan-400 mb-3 group-hover:hidden" />
                         <FolderOpen className="w-7 h-7 text-cyan-400 mb-3 hidden group-hover:block" />
                         <h4 className="font-bold text-white">{yearLabel(yr)}</h4>
@@ -347,7 +351,8 @@ export default function Dashboard() {
                   })}
                   {noYear.length > 0 && (
                     <button onClick={() => setFolderYear('other')}
-                      className="group bg-slate-900/60 border border-slate-700/40 hover:border-slate-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02]">
+                      className="group bg-slate-900/60 border border-slate-700/40 hover:border-slate-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
+                      style={{ animationDelay: `${Math.min(years.length * 40, 320)}ms` }}>
                       <Folder className="w-7 h-7 text-slate-400 mb-3 group-hover:hidden" />
                       <FolderOpen className="w-7 h-7 text-slate-400 mb-3 hidden group-hover:block" />
                       <h4 className="font-bold text-white">Other Subjects</h4>
@@ -362,7 +367,11 @@ export default function Dashboard() {
             if (folderYear === 'other') {
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {noYear.map(s => <SubjectCard key={s.id} subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} />)}
+                  {noYear.map((s, i) => (
+                    <div key={s.id} className="animate-fade-rise-in" style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}>
+                      <SubjectCard subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} />
+                    </div>
+                  ))}
                 </div>
               )
             }
@@ -374,13 +383,14 @@ export default function Dashboard() {
             if (folderBlock === null) {
               return (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {blocks.map(blk => {
+                  {blocks.map((blk, i) => {
                     const blockSubjects = yearSubjects.filter(s => (s.block ?? 'General') === blk)
                     const total = blockSubjects.reduce((a, s) => a + s.total, 0)
                     const answered = blockSubjects.reduce((a, s) => a + s.answered, 0)
                     return (
                       <button key={blk} onClick={() => setFolderBlock(blk)}
-                        className="group bg-slate-900/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02]">
+                        className="group bg-slate-900/60 border border-slate-700/40 hover:border-cyan-500/40 rounded-2xl p-5 text-left transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
+                        style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}>
                         <Folder className="w-7 h-7 text-violet-400 mb-3 group-hover:hidden" />
                         <FolderOpen className="w-7 h-7 text-violet-400 mb-3 hidden group-hover:block" />
                         <h4 className="font-bold text-white">{blk}</h4>
@@ -396,7 +406,11 @@ export default function Dashboard() {
             const blockSubjects = yearSubjects.filter(s => (s.block ?? 'General') === folderBlock)
             return (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {blockSubjects.map(s => <SubjectCard key={s.id} subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} />)}
+                {blockSubjects.map((s, i) => (
+                  <div key={s.id} className="animate-fade-rise-in" style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}>
+                    <SubjectCard subject={s} getSubjectBg={getSubjectBg} getProgressColor={getProgressColor} />
+                  </div>
+                ))}
               </div>
             )
           })()}

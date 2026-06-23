@@ -243,7 +243,7 @@ export default function AdminPage() {
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1.5">Block folder</label>
               <div
-                className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all group ${subjectCount ? 'border-violet-500/60 bg-violet-500/5' : 'border-violet-500/30 hover:border-violet-500/60'} ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-colors duration-200 group ${subjectCount ? 'border-violet-500/60 bg-violet-500/5' : 'border-violet-500/30 hover:border-violet-500/60'} ${processing ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={() => !processing && document.getElementById('folder-input')?.click()}
               >
                 <input id="folder-input" type="file" accept=".pdf,.docx"
@@ -258,12 +258,16 @@ export default function AdminPage() {
 
               {subjectCount > 0 && (
                 <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between animate-fade-rise-in">
                     <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Detected {subjectCount} subject(s)</p>
                     <span className="px-3 py-1 bg-violet-500/10 text-violet-300 rounded-full text-xs font-medium">{fileCount} file(s) queued</span>
                   </div>
-                  {Object.entries(preview).sort().map(([subj, fnames]) => (
-                    <div key={subj} className="bg-[#161D2F] border border-white/5 rounded-xl px-4 py-3 flex items-start gap-3">
+                  {Object.entries(preview).sort().map(([subj, fnames], idx) => (
+                    <div
+                      key={subj}
+                      className="bg-[#161D2F] border border-white/5 rounded-xl px-4 py-3 flex items-start gap-3 animate-fade-rise-in"
+                      style={{ animationDelay: `${Math.min(idx * 40, 320)}ms` }}
+                    >
                       <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0 text-base">
                         {SUBJECT_ICONS[subj.toLowerCase()] || '📁'}
                       </div>
@@ -283,13 +287,13 @@ export default function AdminPage() {
             </div>
 
             <button type="submit" disabled={processing || !fileCount || !block.trim()}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-[#6D28D9] hover:from-violet-400 hover:to-[#7c3aed] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 transition-all">
+              className="press-scale w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-[#6D28D9] hover:from-violet-400 hover:to-[#7c3aed] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-violet-500/20 hover:shadow-violet-500/40 transition-all duration-200">
               {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</> : <><Database className="w-4 h-4" /> Import {fileCount || 0} file(s)</>}
             </button>
           </form>
 
           {(log.length > 0 || currentJob) && (
-            <div className="glass-panel rounded-2xl overflow-hidden border border-white/10 flex flex-col">
+            <div className="glass-panel rounded-2xl overflow-hidden border border-white/10 flex flex-col animate-fade-rise-in">
               <div className="bg-[#161D2F] px-4 py-2.5 border-b border-white/5 flex items-center justify-between">
                 <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">Live Extraction Log</span>
                 <div className="flex gap-1.5">
@@ -300,7 +304,7 @@ export default function AdminPage() {
               </div>
               <div className="p-4 space-y-4">
                 {currentJob && (
-                  <div className="bg-[#161D2F] border border-violet-500/20 rounded-xl p-4">
+                  <div className="bg-[#161D2F] border border-violet-500/20 rounded-xl p-4 animate-fade-rise-in">
                     <p className="text-violet-400 text-sm font-medium mb-2">Extracting slides: {currentJob.fileName}</p>
                     <PdfProcessor
                       lectureId={currentJob.lectureId}
@@ -318,7 +322,7 @@ export default function AdminPage() {
                 )}
                 <div className="space-y-1 max-h-80 overflow-y-auto font-mono text-xs scrollbar-hide">
                   {log.map((l, i) => (
-                    <p key={i} className={l.startsWith('✓') ? 'text-emerald-400' : l.startsWith('✗') ? 'text-red-400' : 'text-slate-400'}>{l}</p>
+                    <p key={i} className={`animate-log-fade-in ${l.startsWith('✓') ? 'text-emerald-400' : l.startsWith('✗') ? 'text-red-400' : 'text-slate-400'}`}>{l}</p>
                   ))}
                   <div ref={logEndRef} />
                 </div>
@@ -342,8 +346,12 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-1">
-                {allLectures.map(l => (
-                  <div key={l.id} className="flex items-center justify-between bg-[#161D2F] hover:bg-white/5 border border-white/5 rounded-xl px-4 py-3 transition-colors">
+                {allLectures.map((l, idx) => (
+                  <div
+                    key={l.id}
+                    className="flex items-center justify-between bg-[#161D2F] hover:bg-white/5 border border-white/5 rounded-xl px-4 py-3 transition-colors animate-fade-rise-in"
+                    style={{ animationDelay: `${Math.min(idx * 40, 320)}ms` }}
+                  >
                     <Link href={`/admin/review/${l.id}`} className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium truncate">{l.title}</p>
                       <p className="text-slate-500 text-xs flex items-center gap-1">
@@ -352,11 +360,11 @@ export default function AdminPage() {
                       </p>
                     </Link>
                     <div className="flex items-center gap-3 ml-3 shrink-0">
-                      <Link href={`/admin/review/${l.id}`} className="flex items-center gap-1 text-violet-400 hover:text-violet-300 text-xs">
+                      <Link href={`/admin/review/${l.id}`} className="flex items-center gap-1 text-violet-400 hover:text-violet-300 text-xs press-scale">
                         <ClipboardEdit className="w-3.5 h-3.5" /> Review
                       </Link>
                       <button onClick={() => deleteLecture(l.id, l.title)}
-                        className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs">
+                        className="flex items-center gap-1 text-red-400 hover:text-red-300 text-xs press-scale">
                         <Trash2 className="w-3.5 h-3.5" /> Delete
                       </button>
                     </div>
