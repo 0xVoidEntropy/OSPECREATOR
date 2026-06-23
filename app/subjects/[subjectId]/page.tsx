@@ -169,16 +169,16 @@ export default function SubjectPage() {
       {/* Zoom overlay */}
       {zoomedImage && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-overlay-in"
           onClick={() => setZoomedImage(null)}
         >
-          <button className="absolute top-4 right-4 text-white bg-slate-800 rounded-full p-2 hover:bg-slate-700">
+          <button className="absolute top-4 right-4 text-white bg-slate-800 rounded-full p-2 hover:bg-slate-700 press-scale">
             <X className="w-5 h-5" />
           </button>
           <img
             src={zoomedImage}
             alt="Zoomed"
-            className="max-w-full max-h-full object-contain rounded-xl"
+            className="max-w-full max-h-full object-contain rounded-xl animate-modal-in"
             onClick={e => e.stopPropagation()}
           />
         </div>
@@ -186,8 +186,8 @@ export default function SubjectPage() {
 
       {/* PDF viewer overlay */}
       {activeLecture && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b border-white/10 glass-panel">
+        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col animate-overlay-in">
+          <div className="flex items-center justify-between p-4 border-b border-white/10 glass-panel animate-modal-in">
             <p className="text-white font-medium">{activeLecture.title}</p>
             <div className="flex items-center gap-2">
               {activeLecture.file_url && (
@@ -197,7 +197,7 @@ export default function SubjectPage() {
                 </a>
               )}
               <button onClick={() => setActiveLecture(null)}
-                className="text-white bg-slate-800 rounded-full p-2 hover:bg-slate-700 ml-2">
+                className="text-white bg-slate-800 rounded-full p-2 hover:bg-slate-700 ml-2 press-scale">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -205,11 +205,11 @@ export default function SubjectPage() {
           {activeLecture.file_url ? (
             <iframe
               src={activeLecture.file_url}
-              className="flex-1 w-full"
+              className="flex-1 w-full animate-modal-in"
               title={activeLecture.title}
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-400">
+            <div className="flex-1 flex items-center justify-center text-slate-400 animate-modal-in">
               No file URL available
             </div>
           )}

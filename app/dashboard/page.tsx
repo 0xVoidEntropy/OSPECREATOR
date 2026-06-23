@@ -22,7 +22,7 @@ function SubjectCard({ subject, getSubjectBg, getProgressColor }: {
   return (
     <Link
       href={`/subjects/${subject.id}`}
-      className={`group relative bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-2xl p-5 transition-all hover:scale-[1.02]`}
+      className={`group relative bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-2xl p-5 transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10`}
     >
       <div className="flex items-center justify-between mb-3">
         <BookOpen className="w-6 h-6 text-white/80" />
@@ -32,8 +32,14 @@ function SubjectCard({ subject, getSubjectBg, getProgressColor }: {
       </div>
       <h4 className="font-bold text-white">{subject.name}</h4>
       {subject.description && <p className="text-slate-400 text-xs mt-1 line-clamp-2">{subject.description}</p>}
+      {/* Fill animates via transform: scaleX instead of width — both transform/opacity stay
+          GPU-only, and the parent's overflow-hidden + rounded-full clip the scaled fill cleanly.
+          700ms ease-in-out is the documented progress-fill exception (constant/moving-on-screen). */}
       <div className="h-1.5 bg-slate-900/40 rounded-full overflow-hidden mt-3">
-        <div className={`h-full ${getProgressColor(subject.color)} rounded-full transition-all duration-700`} style={{ width: `${percent}%` }} />
+        <div
+          className={`h-full w-full ${getProgressColor(subject.color)} rounded-full origin-left transition-transform duration-700`}
+          style={{ transform: `scaleX(${percent / 100})`, transitionTimingFunction: 'var(--ease-in-out-strong)' }}
+        />
       </div>
       <div className="flex items-center justify-between mt-2">
         <span className="text-slate-500 text-xs">{subject.total} question(s)</span>
@@ -194,8 +200,12 @@ export default function Dashboard() {
             { label: 'Total Questions', value: totalStats.total, icon: BookOpen, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
             { label: 'Answered', value: totalStats.answered, icon: Trophy, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { label: 'Progress', value: `${overallPercent}%`, icon: TrendingUp, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-          ].map(s => (
-            <div key={s.label} className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4">
+          ].map((s, i) => (
+            <div
+              key={s.label}
+              className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-4 animate-fade-rise-in"
+              style={{ animationDelay: `${i * 40}ms` }}
+            >
               <div className={`w-9 h-9 ${s.bg} rounded-xl flex items-center justify-center mb-3`}>
                 <s.icon className={`w-4 h-4 ${s.color}`} />
               </div>
@@ -215,10 +225,10 @@ export default function Dashboard() {
 
         {/* Admin: flat subject manager — delete any subject without drilling into folders */}
         {showManage && user?.email === ADMIN_EMAIL && (
-          <div className="bg-slate-900/60 border border-amber-500/30 rounded-2xl p-5 mb-8">
+          <div className="bg-slate-900/60 border border-amber-500/30 rounded-2xl p-5 mb-8 animate-fade-rise-in">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-white">Manage Subjects</h3>
-              <button onClick={() => setShowManage(false)} className="text-slate-500 hover:text-white text-xs">Close</button>
+              <button onClick={() => setShowManage(false)} className="text-slate-500 hover:text-white text-xs press-scale">Close</button>
             </div>
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
               {subjects.map(s => (

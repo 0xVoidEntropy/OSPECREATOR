@@ -3,6 +3,11 @@
 :root {
   --background: #0a0f1e;
   --foreground: #e2e8f0;
+
+  /* Emil Kowalski-style strong easing curves (animations.dev) */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 body {
@@ -47,6 +52,53 @@ body {
 @keyframes reveal {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* Generic entrance for cards / list items appearing together. Pair with
+   inline `animationDelay` (30-80ms steps) for staggered groups. */
+@keyframes fade-rise-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-fade-rise-in {
+  animation: fade-rise-in 320ms var(--ease-out-strong) both;
+}
+
+/* Modal / overlay entrance — stays centered, scales from near-full size (never scale(0)) */
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-modal-in {
+  animation: modal-in 220ms var(--ease-out-strong) both;
+}
+.animate-overlay-in {
+  animation: overlay-in 200ms ease both;
+}
+
+/* Press feedback for any pressable element */
+.press-scale {
+  transition: transform 140ms var(--ease-out-strong);
+}
+.press-scale:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .timer-urgent {
+    animation: none !important;
+  }
 }
 
 /* Custom scrollbar */

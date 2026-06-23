@@ -110,7 +110,7 @@ export default function AuthPage() {
         {/* Auth Card: Right */}
         <div className="flex flex-col justify-center items-center py-12 w-full">
           <div className="w-full max-w-md">
-            <div className="bg-[rgba(22,29,47,0.7)] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] w-full rounded-2xl overflow-hidden p-8 transition-all hover:shadow-2xl hover:shadow-cyan-500/5">
+            <div className="bg-[rgba(22,29,47,0.7)] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] w-full rounded-2xl overflow-hidden p-8 transition-shadow duration-300 hover:shadow-2xl hover:shadow-cyan-500/5 animate-modal-in">
               {/* Card Header */}
               <div className="text-center mb-8">
                 <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-[#4cd7f6] to-[#0053db] items-center justify-center mb-4 shadow-lg shadow-cyan-500/20">
@@ -124,28 +124,35 @@ export default function AuthPage() {
 
               {/* Tabs */}
               {mode !== 'forgot' ? (
-                <div className="flex border-b border-white/10 mb-8">
+                <div className="relative flex border-b border-white/10 mb-8">
                   {(['login', 'signup'] as Mode[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => { setMode(m); setError(null); setMessage(null) }}
-                      className={`flex-1 py-3 text-sm font-medium transition-all ${
+                      className={`flex-1 py-3 text-sm font-medium transition-colors duration-200 ${
                         mode === m
-                          ? 'text-[#4cd7f6] border-b-2 border-[#4cd7f6]'
+                          ? 'text-[#4cd7f6]'
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       {m === 'login' ? 'Sign In' : 'Sign Up'}
                     </button>
                   ))}
+                  <span
+                    className="absolute bottom-0 left-0 w-1/2 h-0.5 bg-[#4cd7f6] transition-transform duration-200"
+                    style={{
+                      transform: mode === 'signup' ? 'translateX(100%)' : 'translateX(0%)',
+                      transitionTimingFunction: 'var(--ease-out-strong)',
+                    }}
+                  />
                 </div>
               ) : (
-                <h2 className="text-white font-semibold text-lg mb-6">Reset Password</h2>
+                <h2 className="text-white font-semibold text-lg mb-6 animate-fade-rise-in">Reset Password</h2>
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 {mode === 'signup' && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 animate-fade-rise-in">
                     <label className="block text-xs font-medium text-slate-400 ml-1">Full Name</label>
                     <div className="relative">
                       <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -177,7 +184,7 @@ export default function AuthPage() {
                 </div>
 
                 {mode !== 'forgot' && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 animate-fade-rise-in">
                     <div className="flex justify-between items-center px-1">
                       <label className="block text-xs font-medium text-slate-400">Password</label>
                       {mode === 'login' && (
@@ -206,14 +213,14 @@ export default function AuthPage() {
                 )}
 
                 {error && (
-                  <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+                  <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl p-3 animate-fade-rise-in">
                     <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
                     <p className="text-red-400 text-xs">{error}</p>
                   </div>
                 )}
 
                 {message && (
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3 animate-fade-rise-in">
                     <p className="text-green-400 text-xs">{message}</p>
                   </div>
                 )}
@@ -221,13 +228,13 @@ export default function AuthPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-br from-[#4cd7f6] to-[#0053db] text-[#003640] font-semibold py-4 rounded-xl shadow-xl shadow-cyan-500/10 hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 group"
+                  className="press-scale w-full bg-gradient-to-br from-[#4cd7f6] to-[#0053db] text-[#003640] font-semibold py-4 rounded-xl shadow-xl shadow-cyan-500/10 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity flex items-center justify-center gap-2 group"
                 >
                   {loading ? (
-                    <>
+                    <span className="flex items-center justify-center gap-2 animate-fade-rise-in">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       {mode === 'login' ? 'Signing in...' : mode === 'forgot' ? 'Sending...' : 'Creating account...'}
-                    </>
+                    </span>
                   ) : (
                     <>
                       {mode === 'login' ? 'Sign In' : mode === 'forgot' ? 'Send Reset Email' : 'Create Account'}
