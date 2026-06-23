@@ -13,6 +13,7 @@ import { LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
 import CroppedImage from '@/components/CroppedImage'
 import AmbossText from '@/components/AmbossText'
+import TranslateButton from '@/components/TranslateButton'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
@@ -633,6 +634,9 @@ function SimulationContent() {
 
           {/* Question text */}
           <div className="glass-panel rounded-2xl p-6 mb-4">
+            <div className="flex justify-end mb-2">
+              <TranslateButton />
+            </div>
             <p className="text-slate-100 text-base leading-relaxed whitespace-pre-line"><AmbossText text={currentQ.question_text} /></p>
           </div>
 
@@ -642,6 +646,7 @@ function SimulationContent() {
               <div className="flex items-center gap-2 mb-2">
                 <Lightbulb className="w-4 h-4 text-amber-400" />
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Hint</span>
+                <TranslateButton className="ml-auto" />
               </div>
               <p className="text-amber-100/80 text-sm leading-relaxed"><AmbossText text={currentQ.hint} /></p>
             </div>
@@ -653,6 +658,7 @@ function SimulationContent() {
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="w-4 h-4 text-cyan-400" />
                 <span className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Model Answer — check yourself below</span>
+                <TranslateButton className="ml-auto" />
               </div>
               <p className="text-cyan-100/90 text-sm leading-relaxed whitespace-pre-line"><AmbossText text={currentQ.answer} /></p>
             </div>

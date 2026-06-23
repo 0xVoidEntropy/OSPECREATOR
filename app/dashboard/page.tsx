@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import { Subject } from '@/types'
 import { ADMIN_EMAIL } from '@/lib/admin'
-import { BookOpen, LogOut, Clock, Trophy, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, ArrowLeft, RotateCcw } from 'lucide-react'
+import { BookOpen, LogOut, Clock, Trophy, Upload, ChevronRight, Microscope, TrendingUp, Folder, FolderOpen, ArrowLeft, RotateCcw, Languages } from 'lucide-react'
 import Link from 'next/link'
+import { getShowTranslate, setShowTranslate } from '@/lib/translateBus'
 
 interface SubjectStats extends Subject {
   total: number
@@ -58,8 +59,11 @@ export default function Dashboard() {
   const [folderBlock, setFolderBlock] = useState<string | null>(null)
   const [showManage, setShowManage] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [translateOn, setTranslateOn] = useState(true)
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => { setTranslateOn(getShowTranslate()) }, [])
 
   const loadData = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -230,13 +234,24 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {user?.email === ADMIN_EMAIL && (
-          <div className="flex justify-end mb-2 -mt-6">
+        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+          <button
+            onClick={() => { const next = !translateOn; setTranslateOn(next); setShowTranslate(next) }}
+            className="press-scale flex items-center gap-2 text-xs text-slate-400 hover:text-cyan-300 bg-slate-900/60 border border-white/10 rounded-md px-3 py-1.5 transition-colors"
+          >
+            <Languages className="w-3.5 h-3.5" />
+            Translate buttons
+            <span className={`w-7 h-4 rounded-full relative transition-colors ${translateOn ? 'bg-cyan-500' : 'bg-slate-700'}`}>
+              <span className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-150 ${translateOn ? 'translate-x-3' : 'translate-x-0'}`} />
+            </span>
+          </button>
+
+          {user?.email === ADMIN_EMAIL && (
             <button onClick={() => setShowManage(v => !v)} className="text-xs text-amber-400 hover:text-amber-300">
               {showManage ? 'Hide subject manager' : 'Manage subjects'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Admin: flat subject manager — delete any subject without drilling into folders */}
         {showManage && user?.email === ADMIN_EMAIL && (

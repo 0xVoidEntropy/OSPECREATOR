@@ -129,6 +129,21 @@ body {
   }
 }
 
+/* Google Translate widget: keep only the in-page translation effect,
+   hide its banner/toolbar chrome so it doesn't push the layout down. */
+.goog-te-banner-frame.skiptranslate,
+.goog-te-gadget-icon,
+#google_translate_element {
+  display: none !important;
+}
+body {
+  top: 0 !important;
+}
+.goog-text-highlight {
+  background: none !important;
+  box-shadow: none !important;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

@@ -7,6 +7,7 @@ import { Question, Subject, UserProgress, Lecture, LecturePage } from '@/types'
 import { findBestImage } from '@/lib/matchImage'
 import CroppedImage from '@/components/CroppedImage'
 import AmbossText from '@/components/AmbossText'
+import TranslateButton from '@/components/TranslateButton'
 import {
   ArrowLeft, Lightbulb, Eye, EyeOff, CheckCircle, Clock,
   BookOpen, FileText, ExternalLink, Loader2, ImageIcon, X, ZoomIn, Plus, RotateCcw
@@ -453,6 +454,9 @@ export default function SubjectPage() {
                   )})()}
 
                   {/* Question text */}
+                  <div className="flex justify-end mb-2">
+                    <TranslateButton />
+                  </div>
                   <p className="text-slate-200 text-sm leading-relaxed whitespace-pre-line mb-4"><AmbossText text={q.question_text} /></p>
 
                   {q.sub_questions && q.sub_questions.length > 0 ? (
