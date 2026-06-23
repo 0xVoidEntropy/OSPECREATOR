@@ -3,7 +3,7 @@
 export interface LookupResult {
   definition: string
   image: string | null
-  source: 'Cleveland Clinic'
+  source: 'Wikipedia'
   url: string
 }
 
