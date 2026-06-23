@@ -563,7 +563,7 @@ function SimulationContent() {
         </div>
 
         {/* Station-by-station right/wrong overview, updates live as you go */}
-        <div className="max-w-3xl mx-auto px-4 pb-3 flex flex-wrap gap-1.5">
+        <div className="max-w-3xl mx-auto px-4 pb-3 flex flex-wrap gap-2">
           {stations.map((_, i) => {
             const done = i < stationScores.length
             const isCurrent = i === currentIdx
@@ -575,7 +575,7 @@ function SimulationContent() {
                 type="button"
                 onClick={() => jumpToStation(i)}
                 title={`Station ${i + 1}${done ? ` — ${Math.round(ratio * 100)}%` : ''}`}
-                className={`font-mono-clinical press-scale w-6 h-6 flex items-center justify-center rounded-md text-[10px] font-bold border transition-colors duration-200 ease cursor-pointer hover:brightness-125 ${colorClass} ${isCurrent ? 'ring-2 ring-cyan-400 scale-110 transition-transform duration-200 ease-out' : 'scale-100 transition-transform duration-200 ease-out'}`}
+                className={`font-mono-clinical press-scale w-8 h-8 flex items-center justify-center rounded-md text-[11px] font-bold border transition-colors duration-200 ease cursor-pointer hover:brightness-125 ${colorClass} ${isCurrent ? 'ring-2 ring-cyan-400 scale-110 transition-transform duration-200 ease-out' : 'scale-100 transition-transform duration-200 ease-out'}`}
               >
                 {i + 1}
               </button>
@@ -738,13 +738,15 @@ function SimulationContent() {
                       )}
                       <button
                         onClick={() => setSubAnswers(prev => prev.map((a, i) => i === idx ? false : a))}
-                        className={`press-scale px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-150 ease ${
+                        aria-label="Mark as missed"
+                        className={`press-scale min-w-11 min-h-11 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-150 ease ${
                           subAnswers[idx] === false ? 'bg-red-500/30 text-red-300 border border-red-500/50' : 'bg-slate-800 text-slate-400 hover:bg-red-500/10'
                         }`}
                       >✗</button>
                       <button
                         onClick={() => setSubAnswers(prev => prev.map((a, i) => i === idx ? true : a))}
-                        className={`press-scale px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-150 ease ${
+                        aria-label="Mark as correct"
+                        className={`press-scale min-w-11 min-h-11 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors duration-150 ease ${
                           subAnswers[idx] === true ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50' : 'bg-slate-800 text-slate-400 hover:bg-emerald-500/10'
                         }`}
                       >✓</button>

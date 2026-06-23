@@ -156,7 +156,7 @@ export default function UploadPage() {
           </Link>
           <div>
             <h1 className="text-white font-bold">Upload Lecture</h1>
-            <p className="text-slate-500 text-xs">PDF slides are automatically processed — images matched to questions</p>
+            <p className="text-slate-500 text-sm">PDF slides are automatically processed — images matched to questions</p>
           </div>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function UploadPage() {
           <div className="space-y-4">
             <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6">
               <h2 className="font-semibold text-white mb-2">Add Lecture</h2>
-              <p className="text-slate-500 text-xs mb-5">
+              <p className="text-slate-500 text-sm mb-5">
                 Upload a PDF of your lecture slides. Every slide will be extracted and automatically matched to the relevant OSPE questions.
               </p>
 
@@ -337,8 +337,8 @@ export default function UploadPage() {
               <div className="flex items-start gap-2">
                 <Cpu className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-slate-300 text-xs font-medium mb-1">How it works</p>
-                  <p className="text-slate-500 text-xs leading-relaxed">
+                  <p className="text-slate-300 text-sm font-medium mb-1">How it works</p>
+                  <p className="text-slate-500 text-sm leading-relaxed">
                     Each slide is rendered as an image and stored. When you study, the app automatically matches each question to the most relevant slide from your uploaded lectures — based on the text content of the slide.
                   </p>
                 </div>

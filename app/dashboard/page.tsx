@@ -127,8 +127,8 @@ export default function Dashboard() {
       '#dc2626': 'from-red-500/20 to-red-600/10 border-red-500/30',
       '#059669': 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30',
       '#d97706': 'from-amber-500/20 to-amber-600/10 border-amber-500/30',
-      '#0284c7': 'from-blue-500/20 to-blue-600/10 border-blue-500/30',
-      '#9333ea': 'from-purple-500/20 to-purple-600/10 border-purple-500/30',
+      '#0284c7': 'from-cyan-500/20 to-cyan-600/10 border-cyan-500/30',
+      '#9333ea': 'from-violet-500/20 to-violet-600/10 border-violet-500/30',
     }
     return map[color] || 'from-slate-500/20 to-slate-600/10 border-slate-500/30'
   }
@@ -140,8 +140,8 @@ export default function Dashboard() {
       '#dc2626': 'bg-red-500',
       '#059669': 'bg-emerald-500',
       '#d97706': 'bg-amber-500',
-      '#0284c7': 'bg-blue-500',
-      '#9333ea': 'bg-purple-500',
+      '#0284c7': 'bg-cyan-500',
+      '#9333ea': 'bg-violet-500',
     }
     return map[color] || 'bg-slate-500'
   }
@@ -199,7 +199,7 @@ export default function Dashboard() {
         </div>
 
         {/* Overall stats */}
-        <div className="relative grid grid-cols-3 gap-4 mb-8">
+        <div className="relative grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="clinical-overlay absolute inset-0 -z-10 rounded-2xl opacity-60" />
           {[
             { label: 'Total Questions', value: totalStats.total, icon: BookOpen, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
@@ -247,7 +247,7 @@ export default function Dashboard() {
           </button>
 
           {user?.email === ADMIN_EMAIL && (
-            <button onClick={() => setShowManage(v => !v)} className="text-xs text-amber-400 hover:text-amber-300">
+            <button onClick={() => setShowManage(v => !v)} className="press-scale text-xs text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 rounded-md px-3 py-1.5 transition-colors">
               {showManage ? 'Hide subject manager' : 'Manage subjects'}
             </button>
           )}

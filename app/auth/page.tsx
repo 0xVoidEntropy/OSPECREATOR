@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
-import { Mail, Lock, User, AlertCircle, Loader2, Microscope, ArrowRight, HelpCircle } from 'lucide-react'
+import { Mail, Lock, User, AlertCircle, Loader2, Microscope, ArrowRight, HelpCircle, BookOpen, Clock, TrendingUp } from 'lucide-react'
 
 type Mode = 'login' | 'signup' | 'forgot'
 
@@ -260,16 +260,16 @@ export default function AuthPage() {
             {/* Features */}
             <div className="grid grid-cols-3 gap-3 mt-6">
               {[
-                { icon: '📚', label: 'All Subjects' },
-                { icon: '⏱️', label: '5-min Stations' },
-                { icon: '📈', label: 'Track Progress' },
+                { icon: BookOpen, label: 'All Subjects' },
+                { icon: Clock, label: '5-min Stations' },
+                { icon: TrendingUp, label: 'Track Progress' },
               ].map((f, i) => (
                 <div
                   key={f.label}
                   className="bg-[rgba(22,29,47,0.7)] border border-white/10 rounded-xl p-3 text-center animate-fade-rise-in"
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
-                  <div className="text-xl mb-1">{f.icon}</div>
+                  <f.icon className="w-5 h-5 text-[#4cd7f6] mx-auto mb-1.5" />
                   <p className="text-slate-400 text-xs">{f.label}</p>
                 </div>
               ))}
