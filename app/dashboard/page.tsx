@@ -212,6 +212,20 @@ export default function Dashboard() {
               </div>
               <p className="font-[family-name:var(--font-mono)] tabular-nums text-2xl font-bold text-white">{s.value}</p>
               <p className="text-slate-500 text-xs mt-0.5">{s.label}</p>
+              {s.label === 'Answered' && subjects.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/5 space-y-1 max-h-28 overflow-y-auto pr-1">
+                  {subjects.map(subj => (
+                    <div key={subj.id} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-slate-400 truncate flex items-center gap-1">
+                        <span>{subj.icon}</span> {subj.name}
+                      </span>
+                      <span className="font-[family-name:var(--font-mono)] tabular-nums text-slate-500 shrink-0">
+                        {subj.answered}/{subj.total}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
