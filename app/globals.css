@@ -109,6 +109,17 @@ body {
   animation: glossary-in 200ms var(--ease-out-strong) both;
 }
 
+/* Subtle pulse for numeric values that update on a tick (timer seconds, live score),
+   so the change reads as a deliberate update rather than an abrupt text swap.
+   Opacity+transform only, short enough to stay out of the way at 1s intervals. */
+@keyframes value-tick {
+  0% { opacity: 0.55; transform: scale(0.97); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-value-tick {
+  animation: value-tick 220ms var(--ease-out-strong) both;
+}
+
 /* Press feedback for any pressable element */
 .press-scale {
   transition: transform 140ms var(--ease-out-strong);

@@ -141,8 +141,26 @@ export default function UploadPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+      <div className="min-h-screen bg-[#0a0f1e]">
+        <div className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-40">
+          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
+            <div className="w-5 h-5 rounded bg-white/5 animate-pulse" />
+            <div className="space-y-1.5">
+              <div className="h-4 w-32 rounded-md bg-white/5 animate-pulse" />
+              <div className="h-3 w-56 rounded-md bg-white/5 animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-slate-900/60 border border-slate-700/40 rounded-2xl p-6 h-96 animate-pulse" />
+            <div className="space-y-3">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 h-16 animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -151,7 +169,7 @@ export default function UploadPage() {
     <div className="min-h-screen bg-[#0a0f1e]">
       <div className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">
+          <Link href="/dashboard" aria-label="Back to dashboard" className="press-scale text-slate-400 hover:text-white transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
@@ -222,6 +240,7 @@ export default function UploadPage() {
                         <button
                           type="button"
                           onClick={ev => { ev.stopPropagation(); setFile(null) }}
+                          aria-label="Remove selected file"
                           className="text-slate-400 hover:text-white transition-colors press-scale"
                         >
                           <X className="w-4 h-4" />
@@ -363,7 +382,7 @@ export default function UploadPage() {
                   return (
                     <div
                       key={lecture.id}
-                      className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 flex items-center gap-3 animate-fade-rise-in"
+                      className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 flex items-center gap-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-white/20 animate-fade-rise-in"
                       style={{ animationDelay: `${Math.min(idx * 40, 320)}ms` }}
                     >
                       <div className="w-9 h-9 bg-slate-800 border border-white/5 rounded-md flex items-center justify-center shrink-0">
@@ -375,6 +394,7 @@ export default function UploadPage() {
                       </div>
                       {lecture.file_url && (
                         <a href={lecture.file_url} target="_blank" rel="noopener noreferrer"
+                          aria-label="Open lecture PDF in new tab"
                           className="text-slate-500 hover:text-cyan-400 transition-colors press-scale">
                           <ExternalLink className="w-4 h-4" />
                         </a>
@@ -383,6 +403,7 @@ export default function UploadPage() {
                         onClick={() => handleDelete(lecture)}
                         className="text-slate-600 hover:text-red-400 transition-colors press-scale"
                         title="Delete lecture"
+                        aria-label="Delete lecture"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

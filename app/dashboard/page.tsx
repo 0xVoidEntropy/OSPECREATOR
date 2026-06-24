@@ -23,7 +23,7 @@ function SubjectCard({ subject, getSubjectBg, getProgressColor }: {
   return (
     <Link
       href={`/subjects/${subject.id}`}
-      className={`group relative block bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-xl p-5 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10`}
+      className={`press-scale group relative block bg-gradient-to-br ${getSubjectBg(subject.color)} border rounded-xl p-5 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10`}
     >
       <div className="flex items-center justify-between mb-3">
         <span className="text-2xl leading-none">{subject.icon}</span>
@@ -150,11 +150,41 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-400 text-sm">Loading your dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-[#0a0f1e]">
+        <nav className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <Microscope className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h1 className="text-white font-bold text-sm">OSPE Study Helper</h1>
+                <p className="text-slate-500 text-xs">IMS Medical Sciences</p>
+              </div>
+            </div>
+          </div>
+        </nav>
+        <main className="max-w-7xl mx-auto px-4 py-8">
+          <div className="mb-8 space-y-2">
+            <div className="h-7 w-64 rounded-md bg-white/5 animate-pulse" />
+            <div className="h-4 w-48 rounded-md bg-white/5 animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="bg-slate-900/60 border border-white/10 rounded-xl p-4 animate-pulse" style={{ animationDelay: `${i * 80}ms` }}>
+                <div className="w-9 h-9 bg-white/5 rounded-lg mb-3" />
+                <div className="h-7 w-16 bg-white/5 rounded-md mb-2" />
+                <div className="h-3 w-20 bg-white/5 rounded-md" />
+              </div>
+            ))}
+          </div>
+          <div className="h-24 bg-slate-900/60 border border-white/10 rounded-xl mb-8 animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
+              <div key={i} className="bg-slate-900/60 border border-white/10 rounded-xl p-5 h-32 animate-pulse" style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }} />
+            ))}
+          </div>
+        </main>
       </div>
     )
   }
@@ -182,7 +212,9 @@ export default function Dashboard() {
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg text-sm transition-colors"
+              aria-label="Sign out"
+              className="press-scale flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg text-sm transition-colors duration-150"
+              style={{ transitionTimingFunction: 'var(--ease-out-strong)' }}
             >
               <LogOut className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Sign Out</span>
@@ -302,7 +334,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <Link
             href="/simulation"
-            className="group bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 hover:border-cyan-400/50 rounded-xl p-6 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:shadow-lg hover:shadow-cyan-500/10"
+            className="press-scale group bg-gradient-to-r from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 hover:border-cyan-400/50 rounded-xl p-6 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-cyan-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -319,7 +351,7 @@ export default function Dashboard() {
           {user?.email === ADMIN_EMAIL && (
             <Link
               href="/admin"
-              className="group bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/30 hover:border-amber-400/50 rounded-xl p-6 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:shadow-lg hover:shadow-amber-500/10"
+              className="press-scale group bg-gradient-to-r from-amber-500/20 to-amber-600/20 border border-amber-500/30 hover:border-amber-400/50 rounded-xl p-6 shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-500/10"
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -370,7 +402,7 @@ export default function Dashboard() {
                     const answered = yearSubjects.reduce((a, s) => a + s.answered, 0)
                     return (
                       <button key={yr} onClick={() => setFolderYear(yr)}
-                        className="group bg-slate-900/60 border border-white/10 hover:border-cyan-500/40 rounded-xl p-5 text-left shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
+                        className="press-scale group bg-slate-900/60 border border-white/10 hover:border-cyan-500/40 rounded-xl p-5 text-left shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
                         style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}>
                         <Folder className="w-7 h-7 text-cyan-400 mb-3 group-hover:hidden" />
                         <FolderOpen className="w-7 h-7 text-cyan-400 mb-3 hidden group-hover:block" />
@@ -381,7 +413,7 @@ export default function Dashboard() {
                   })}
                   {noYear.length > 0 && (
                     <button onClick={() => setFolderYear('other')}
-                      className="group bg-slate-900/60 border border-white/10 hover:border-slate-500/40 rounded-xl p-5 text-left shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
+                      className="press-scale group bg-slate-900/60 border border-white/10 hover:border-slate-500/40 rounded-xl p-5 text-left shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
                       style={{ animationDelay: `${Math.min(years.length * 40, 320)}ms` }}>
                       <Folder className="w-7 h-7 text-slate-400 mb-3 group-hover:hidden" />
                       <FolderOpen className="w-7 h-7 text-slate-400 mb-3 hidden group-hover:block" />
@@ -419,7 +451,7 @@ export default function Dashboard() {
                     const answered = blockSubjects.reduce((a, s) => a + s.answered, 0)
                     return (
                       <button key={blk} onClick={() => setFolderBlock(blk)}
-                        className="group bg-slate-900/60 border border-white/10 hover:border-cyan-500/40 rounded-xl p-5 text-left shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
+                        className="press-scale group bg-slate-900/60 border border-white/10 hover:border-cyan-500/40 rounded-xl p-5 text-left shadow-[0_2px_12px_rgba(2,8,23,0.5)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-cyan-500/10 animate-fade-rise-in"
                         style={{ animationDelay: `${Math.min(i * 40, 320)}ms` }}>
                         <Folder className="w-7 h-7 text-cyan-400 mb-3 group-hover:hidden" />
                         <FolderOpen className="w-7 h-7 text-cyan-400 mb-3 hidden group-hover:block" />

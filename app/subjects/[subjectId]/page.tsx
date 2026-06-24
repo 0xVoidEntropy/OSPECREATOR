@@ -159,8 +159,26 @@ export default function SubjectPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0a0f1e]">
-        <Loader2 className="w-8 h-8 text-[#4cd7f6] animate-spin" />
+      <div className="min-h-screen bg-[#0a0f1e] clinical-overlay">
+        <div className="bg-[#0a0f1e]/80 backdrop-blur-xl border-b border-white/10 shadow-md sticky top-0 z-40">
+          <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />
+            <div className="w-9 h-9 rounded-lg bg-white/5 animate-pulse" />
+            <div className="space-y-1.5">
+              <div className="h-4 w-40 rounded-md bg-white/5 animate-pulse" />
+              <div className="h-3 w-24 rounded-md bg-white/5 animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <div className="h-20 bg-slate-900/60 border border-white/10 rounded-xl mb-6 animate-pulse" />
+          <div className="h-9 w-72 bg-white/5 rounded-lg mb-6 animate-pulse" />
+          <div className="space-y-5">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="glass-panel border border-white/10 rounded-xl p-5 h-40 animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -185,7 +203,7 @@ export default function SubjectPage() {
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 animate-overlay-in"
           onClick={() => setZoomedImage(null)}
         >
-          <button className="absolute top-4 right-4 text-white bg-slate-800 rounded-full p-2 hover:bg-slate-700 press-scale">
+          <button aria-label="Close zoomed image" className="absolute top-4 right-4 text-white bg-slate-800 rounded-full p-2 hover:bg-slate-700 press-scale">
             <X className="w-5 h-5" />
           </button>
           <img
@@ -209,7 +227,7 @@ export default function SubjectPage() {
                   <ExternalLink className="w-4 h-4" /> Open in new tab
                 </a>
               )}
-              <button onClick={() => setActiveLecture(null)}
+              <button onClick={() => setActiveLecture(null)} aria-label="Close lecture viewer"
                 className="text-white bg-slate-800 rounded-full p-2 hover:bg-slate-700 ml-2 press-scale">
                 <X className="w-5 h-5" />
               </button>
@@ -333,6 +351,7 @@ export default function SubjectPage() {
                         onClick={(e) => { e.stopPropagation(); setActiveLecture(lecture) }}
                         className="absolute top-2.5 right-2.5 text-slate-500 hover:text-[#4cd7f6] press-scale"
                         title="View lecture PDF"
+                        aria-label="View lecture PDF"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                       </button>

@@ -277,8 +277,21 @@ function SimulationContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+      <div className="min-h-screen bg-[#0a0f1e] p-4">
+        <div className="max-w-2xl mx-auto pt-8">
+          <div className="h-4 w-32 rounded-md bg-white/5 animate-pulse mb-8" />
+          <div className="text-center mb-8 flex flex-col items-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 animate-pulse mb-4" />
+            <div className="h-3 w-28 rounded-md bg-white/5 animate-pulse mb-2" />
+            <div className="h-7 w-56 rounded-md bg-white/5 animate-pulse mb-2" />
+            <div className="h-4 w-72 rounded-md bg-white/5 animate-pulse" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[0, 1].map(i => (
+              <div key={i} className="h-20 rounded-2xl bg-slate-900/60 border border-slate-700/40 animate-pulse" style={{ animationDelay: `${i * 80}ms` }} />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -532,8 +545,9 @@ function SimulationContent() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-4">
           <button
             onClick={() => { if (timerRef.current) clearInterval(timerRef.current); if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY); setRunning(false); setStarted(false) }}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-red-400 transition-colors"
+            className="press-scale flex items-center gap-1.5 text-slate-400 hover:text-red-400 transition-colors"
             title="Exit Exam"
+            aria-label="Exit exam"
           >
             <LogOut className="w-5 h-5" />
           </button>
@@ -550,7 +564,7 @@ function SimulationContent() {
                   : 'bg-slate-800/80 text-cyan-400 border-white/5'
               }`}>
                 <Clock className="w-4 h-4" />
-                {formatTime(timeLeft)}
+                <span key={timeLeft} className="animate-value-tick inline-block">{formatTime(timeLeft)}</span>
               </div>
             </div>
             <div className="mt-1 h-1 bg-slate-800 rounded-md overflow-hidden">
@@ -598,7 +612,7 @@ function SimulationContent() {
             <span className="font-mono-clinical text-xs px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-white/5">
               Station {currentIdx + 1}
             </span>
-            <span className={`font-mono-clinical text-xs px-2 py-0.5 rounded-md border font-medium transition-colors duration-150 ease ${ratioColor(currentRatio)}`}>
+            <span key={`${subAnswers.filter(a => a === true).length}/${subAnswers.length}`} className={`animate-value-tick font-mono-clinical text-xs px-2 py-0.5 rounded-md border font-medium transition-colors duration-150 ease ${ratioColor(currentRatio)}`}>
               {subAnswers.filter(a => a === true).length} / {subAnswers.length} correct
             </span>
           </div>
@@ -810,7 +824,8 @@ function SimulationContent() {
         >
           <button
             onClick={() => setZoomImage(null)}
-            className="absolute top-4 right-4 p-2 bg-slate-800/80 hover:bg-slate-700 rounded-full text-white transition-colors"
+            aria-label="Close zoomed image"
+            className="press-scale absolute top-4 right-4 p-2 bg-slate-800/80 hover:bg-slate-700 rounded-full text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
